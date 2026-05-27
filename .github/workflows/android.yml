@@ -1,0 +1,92 @@
+# GitHub Actions workflow for building the DrumFord X Android APK.
+#
+# Triggers automatically on every push to `android-capacitor`, and can be run
+# on demand from the Actions tab via "Run workflow". Produces a debug APK
+# (signed with the standard Android debug keystore) that's good for sideloading
+# into BlueStacks or any device with "Install Unknown Apps" enabled.
+#
+# After a successful run, the APK shows up under
+#   Actions tab → run → Artifacts → drumford-x-debug-apk
+# Click to download — it's a zip containing app-debug.apk. Drag into BlueStacks
+# (or any Android device) to install.
+#
+# Build time: ~5-10 min cold cache, ~3-5 min warm. Free on private repos
+# (2,000 min/month allowance, way more than we'll use).
+
+name: Build Android APK
+
+on:
+  push:
+    branches: [android-capacitor]
+    # Skip CI for changes that can't affect the APK
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'electron/**'
+      - 'docs/**'
+      - 'public/icon-preview.png'
+  workflow_dispatch: # allow manual trigger from the Actions tab
+
+jobs:
+  build:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # Installs the Android command-line tools + SDK, accepts the licenses.
+      # No interactive prompts, totally hands-off.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # Pinning a known-good cmdline-tools version avoids surprise breaks
+          # when GitHub bumps the default. Bump deliberately when needed.
+          cmdline-tools-version: 12266719
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build renderer (Vite)
+        run: npm run build:renderer
+
+      # `cap sync` copies dist/ into android/app/src/main/assets/public/
+      # and regenerates capacitor.config.json + plugin registration.
+      - name: Sync Capacitor → Android
+        run: npx cap sync android
+
+      # gradlew is committed by Capacitor but may not retain the executable
+      # bit through Windows-checked-in repos. Linux needs it set explicitly.
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Build Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Locate APK
+        run: |
+          echo "::group::APK output"
+          ls -lh android/app/build/outputs/apk/debug/
+          echo "::endgroup::"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drumford-x-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+          if-no-files-found: error
