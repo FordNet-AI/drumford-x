@@ -16,17 +16,25 @@
     "start": "npm run build:electron && electron .",
     "preview": "vite preview",
     "icon": "node scripts/generate-icon.cjs",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "android:sync": "npm run build:renderer && cap sync android",
+    "android:open": "npm run android:sync && cap open android",
+    "android:run": "npm run android:sync && cap run android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.3.4",
     "adm-zip": "^0.5.17",
     "idb-keyval": "^6.2.1",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.575.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.3.4",
     "@tailwindcss/vite": "^4.2.1",
     "@types/adm-zip": "^0.5.8",
     "@types/node": "^24.10.1",

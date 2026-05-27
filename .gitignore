@@ -35,6 +35,20 @@ Thumbs.db
 # electron-builder cache (also lives in user AppData but skip if any local copy)
 .electron-cache/
 
+# Android (Capacitor) build artifacts. The android/ folder itself is committed
+# (Gradle config, native shell, plugins). These subpaths are generated.
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+android/captures/
+android/local.properties
+android/.idea/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/capacitor-cordova-android-plugins/
+
 # Claude Code / planning artifacts
 .claude/
 
