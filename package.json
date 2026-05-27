@@ -1,0 +1,68 @@
+{
+  "name": "drumford-x",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Paradiddle drum chart visualizer for flat screens. Built by Fordnet.",
+  "author": "Tim @ Fordnet",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "electron-dist/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "dev:electron": "npm run build:electron && electron .",
+    "build:electron": "tsc -p tsconfig.electron.json && node scripts/rename-cjs.cjs",
+    "build:renderer": "tsc -b && vite build",
+    "build": "npm run build:electron && npm run build:renderer",
+    "start": "npm run build:electron && electron .",
+    "preview": "vite preview",
+    "icon": "node scripts/generate-icon.cjs",
+    "dist": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.17",
+    "idb-keyval": "^6.2.1",
+    "lucide-react": "^0.575.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/adm-zip": "^0.5.8",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "electron": "^42.3.0",
+    "electron-builder": "^26.8.1",
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^4.2.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1"
+  },
+  "build": {
+    "appId": "com.fordnet.drumford-x",
+    "productName": "DrumFord X",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron-dist/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DrumFord X",
+      "installerIcon": "public/icon.ico",
+      "uninstallerIcon": "public/icon.ico"
+    }
+  }
+}

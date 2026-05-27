@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Background fill (transparent on real ICO, but rendered for the preview) -->
+  <rect width="1024" height="1024" fill="#050508"/>
+
+  <!-- Outer drum shell shadow ring -->
+  <circle cx="512" cy="512" r="470" fill="#0f0f1a" stroke="#1a1a2e" stroke-width="6"/>
+
+  <!-- Outer hoop (chrome rim) - cyan gradient -->
+  <defs>
+    <radialGradient id="head" cx="512" cy="450" r="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"  stop-color="#0c0c14"/>
+      <stop offset="60%" stop-color="#08080e"/>
+      <stop offset="100%" stop-color="#04040a"/>
+    </radialGradient>
+    <linearGradient id="hoop" x1="0" y1="0" x2="0" y2="1024">
+      <stop offset="0%"  stop-color="#00e5ff"/>
+      <stop offset="100%" stop-color="#0099aa"/>
+    </linearGradient>
+    <filter id="dfGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+
+  <!-- Drum head -->
+  <circle cx="512" cy="512" r="430" fill="url(#head)"/>
+
+  <!-- Hoop ring (the chrome edge of the bass drum) -->
+  <circle cx="512" cy="512" r="430" fill="none" stroke="url(#hoop)" stroke-width="32"/>
+
+  <!-- Tension lugs around the rim (8 of them, evenly spaced) -->
+  <g fill="#888">
+    <!-- 8 lugs at 45° intervals; positioned just outside the head -->
+    <circle cx="512" cy="56"  r="22"/>
+    <circle cx="834" cy="190" r="22"/>
+    <circle cx="968" cy="512" r="22"/>
+    <circle cx="834" cy="834" r="22"/>
+    <circle cx="512" cy="968" r="22"/>
+    <circle cx="190" cy="834" r="22"/>
+    <circle cx="56"  cy="512" r="22"/>
+    <circle cx="190" cy="190" r="22"/>
+  </g>
+
+  <!-- Subtle inner head highlight (top-left shine) -->
+  <ellipse cx="360" cy="320" rx="280" ry="120" fill="rgba(255, 255, 255, 0.025)"/>
+
+  <!-- DF lettering - the band name -->
+  <!-- Soft glow behind the letters -->
+  <g filter="url(#dfGlow)">
+    <text x="512" y="635"
+          text-anchor="middle"
+          font-family="Impact, 'Arial Black', sans-serif"
+          font-size="500"
+          font-weight="900">
+      <tspan fill="#00e5ff80">D</tspan><tspan fill="#ff3a5c80">F</tspan>
+    </text>
+  </g>
+
+  <!-- The letters themselves -->
+  <text x="512" y="635"
+        text-anchor="middle"
+        font-family="Impact, 'Arial Black', sans-serif"
+        font-size="500"
+        font-weight="900">
+    <tspan fill="#00e5ff">D</tspan><tspan fill="#ff3a5c">F</tspan>
+  </text>
+
+  <!-- "DRUMFORD X" wordmark below DF -->
+  <text x="512" y="810"
+        text-anchor="middle"
+        font-family="'Share Tech Mono', 'Courier New', monospace"
+        font-size="70"
+        font-weight="700"
+        letter-spacing="14">
+    <tspan fill="#666">DRUMFORD</tspan><tspan fill="#444" dx="20">X</tspan>
+  </text>
+</svg>
