@@ -13,8 +13,16 @@ function metaKey(id: string): string {
   return META_PREFIX + id
 }
 
-function extractMeta(song: StoredSong): StoredSongMeta {
-  // A song has a drum track if it has any drum blobs (new format) or a legacy drum blob
+/**
+ * Build a fresh meta record from a stored song.
+ *
+ * `addedAt` defaults to "now" — meaning every meta created at first-time
+ * import OR rebuilt via the migration path gets stamped. Callers that have
+ * a previous addedAt to preserve (e.g. migration of an old record) should
+ * read the existing meta first and pass `preserveAddedAt` so we don't
+ * overwrite the original import time.
+ */
+function extractMeta(song: StoredSong, preserveAddedAt?: number): StoredSongMeta {
   const hasDrumTrack =
     (song.drumTrackBlobs?.length ?? 0) > 0 ||
     !!song.drumTrackBlob
@@ -31,6 +39,7 @@ function extractMeta(song: StoredSong): StoredSongMeta {
     folderName: song.folderName,
     hasDrumTrack,
     instrumentClasses: extractInstrumentClasses(song.rlrrJson),
+    addedAt: preserveAddedAt ?? Date.now(),
   }
 }
 
@@ -74,12 +83,18 @@ async function ensureMetasExist(): Promise<void> {
   }
 
   // Migrate old metas missing fields added after their import time
-  // (hasDrumTrack, instrumentClasses, …). Rebuild from the full song if so.
+  // (hasDrumTrack, instrumentClasses, addedAt, …). Rebuild from the full
+  // song if so, but preserve `addedAt` if it was already stamped — the
+  // user's import history shouldn't reset every time we add a new field.
   for (const id of metaIds) {
     const meta = await get<StoredSongMeta>(metaKey(id))
-    if (meta && (meta.hasDrumTrack === undefined || meta.instrumentClasses === undefined)) {
+    if (meta && (
+      meta.hasDrumTrack === undefined ||
+      meta.instrumentClasses === undefined ||
+      meta.addedAt === undefined
+    )) {
       const song = await get<StoredSong>(songKey(id))
-      if (song) await set(metaKey(id), extractMeta(song))
+      if (song) await set(metaKey(id), extractMeta(song, meta.addedAt))
     }
   }
 }
@@ -118,6 +133,10 @@ export async function getAllSongMetas(): Promise<SongMeta[]> {
     for (const m of metas) {
       for (const cls of m.instrumentClasses ?? []) allClasses.add(cls)
     }
+    // "Added" = the most recent of any chart for this song. So importing
+    // an Expert chart for a song you already have at Easy bumps the song
+    // back to the top of the Date Added sort.
+    const addedAt = metas.reduce((max, m) => Math.max(max, m.addedAt ?? 0), 0)
     result.push({
       id: first.id,
       title: first.title,
@@ -131,6 +150,7 @@ export async function getAllSongMetas(): Promise<SongMeta[]> {
       folderName: first.folderName,
       hasDrumTrack: metas.some((m) => m.hasDrumTrack === true),
       instrumentClasses: [...allClasses].sort(),
+      addedAt,
     })
   }
 
