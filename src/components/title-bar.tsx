@@ -1,13 +1,17 @@
 import { Minus, Square, X } from 'lucide-react'
-
-const isElectron = !!window.electronAPI
+import { isCapacitor } from '@/lib/capacitor-bridge'
 
 /**
- * Custom frameless title bar — visible only in Electron.
+ * Custom frameless title bar — visible only inside the actual Electron shell.
+ * Hidden in:
+ *   - Plain browser mode (no window controls exist)
+ *   - Capacitor / Android (the OS provides its own status bar; our custom one
+ *     would just show three non-functional buttons since minimize/maximize/close
+ *     are no-ops on mobile).
  * The entire bar is draggable (app region), except the window control buttons.
  */
 export function TitleBar() {
-  if (!isElectron) return null
+  if (!window.electronAPI || isCapacitor()) return null
 
   return (
     <div
