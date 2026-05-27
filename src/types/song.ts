@@ -112,6 +112,13 @@ export interface SongMeta {
    * what kit pieces the chart uses before pressing play.
    */
   instrumentClasses: string[]
+  /**
+   * When this song was first added to the user's library (ms since epoch).
+   * For songs with multiple difficulties, this is the MAX of each chart's
+   * `addedAt` — when the most-recent difficulty entered the library, which
+   * matches the user's mental model of "when did this song last appear here."
+   */
+  addedAt: number
 }
 
 export interface StoredSongMeta {
@@ -127,6 +134,8 @@ export interface StoredSongMeta {
   hasDrumTrack?: boolean // optional for backward compat with old IndexedDB records
   /** Sorted unique instrument classes hit in this chart's events. Optional for backward compat. */
   instrumentClasses?: string[]
+  /** Ms-epoch timestamp of when this chart was imported. Optional for backward compat — old records get Date.now() at migration time. */
+  addedAt?: number
 }
 
 export interface StoredSong {

@@ -1,10 +1,11 @@
 import { Search, ArrowUpDown, ChevronDown } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 
-export type SortField = 'title' | 'artist' | 'complexity' | 'duration'
+export type SortField = 'title' | 'artist' | 'complexity' | 'duration' | 'dateAdded'
 export type SortDir = 'asc' | 'desc'
 
 const SORT_OPTIONS: { value: SortField; label: string }[] = [
+  { value: 'dateAdded', label: 'Date Added' },
   { value: 'title', label: 'Title' },
   { value: 'artist', label: 'Artist' },
   { value: 'complexity', label: 'Complexity' },

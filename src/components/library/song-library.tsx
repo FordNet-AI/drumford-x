@@ -88,6 +88,13 @@ export function SongLibrary() {
         case 'duration':
           cmp = a.duration - b.duration
           break
+        case 'dateAdded':
+          // Older songs (lower addedAt) ascend; descending → newest first.
+          // Tie-break by title so songs imported in the same batch stay grouped
+          // alphabetically rather than in random/insertion order.
+          cmp = a.addedAt - b.addedAt
+          if (cmp === 0) cmp = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
+          break
       }
       return sortDir === 'asc' ? cmp : -cmp
     })
@@ -102,8 +109,10 @@ export function SongLibrary() {
         setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
         return prev
       }
-      // New field, default to ascending
-      setSortDir('asc')
+      // New field: pick the direction that feels natural for that field.
+      // "Date Added" defaults to newest-first; alphabetical fields default
+      // to A→Z; numeric fields ascend (shortest/easiest first).
+      setSortDir(field === 'dateAdded' ? 'desc' : 'asc')
       return field
     })
   }, [])
