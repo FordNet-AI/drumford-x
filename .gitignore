@@ -58,3 +58,6 @@ android/capacitor-cordova-android-plugins/
 # not project assets. The real song library lives in IndexedDB at runtime.
 /Songs/
 /diddle/
+
+# Unrelated third-party reference tool the user keeps in this folder
+/ParadiddleUtilities-master/
