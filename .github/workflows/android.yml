@@ -44,11 +44,14 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Set up JDK 17 (Temurin)
+      - name: Set up JDK 21 (Temurin)
         uses: actions/setup-java@v4
         with:
+          # Capacitor 8's Android Gradle plugin uses Java source level 21
+          # (a change from Capacitor 6 which used 17). Trying to compile with
+          # 17 fails with "invalid source release: 21".
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       # Installs the Android command-line tools + SDK, accepts the licenses.
       # No interactive prompts, totally hands-off.
