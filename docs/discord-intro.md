@@ -56,7 +56,7 @@ Three lengths depending on the channel vibe. Pick whichever fits.
 
 - **Pin the GitHub Issues link in your reply.** Channel a "report bugs here" → consolidates feedback.
 - **Don't promise specific features.** Say "I'll look into it" or "interesting, let me think." Easier to under-promise.
-- **Tag posts with the version** ("v0.1.1 alpha") so people can tell stale reports apart from fresh ones.
+- **Tag posts with the version** ("v0.1.0 alpha") so people can tell stale reports apart from fresh ones.
 
 ## What to do if it lands flat
 
