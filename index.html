@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DrumFord X</title>
+    <!-- Google Fonts: Orbitron (display) + Share Tech Mono (body).
+         Direct <link> in the HTML rather than @import in CSS because
+         Tailwind v4's CSS pipeline (lightningcss) strips remote @imports
+         during build. preconnect hints save ~100ms on cold load. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&family=Share+Tech+Mono&display=swap" />
   </head>
   <body>
     <div id="root"></div>
