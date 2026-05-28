@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Upload, Music } from 'lucide-react'
+import { X, Upload, Music, Trash2 } from 'lucide-react'
 import type { SongMeta } from '@/types/song'
 import { useLibraryStore } from '@/stores/library-store'
 
@@ -14,8 +14,15 @@ export function SongEditModal({ song, onClose }: SongEditModalProps) {
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [newCoverBlob, setNewCoverBlob] = useState<Blob | null | undefined>(undefined)
   const [isSaving, setIsSaving] = useState(false)
+  // Two-click delete confirmation. First click flips to true and morphs the
+  // button into a louder "Confirm delete?" with a Cancel beside it; second
+  // click actually runs removeSong. State is intentionally NOT persisted
+  // across mount — closing & reopening the modal always resets to safe.
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const updateSong = useLibraryStore((s) => s.updateSong)
+  const removeSong = useLibraryStore((s) => s.removeSong)
 
   // Create object URL for current cover
   useEffect(() => {
@@ -61,6 +68,29 @@ export function SongEditModal({ song, onClose }: SongEditModalProps) {
       console.error('Failed to save:', err)
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleDeleteClick = async () => {
+    if (!isConfirmingDelete) {
+      setIsConfirmingDelete(true)
+      return
+    }
+    // Second click — actually delete.
+    setIsDeleting(true)
+    try {
+      // removeSong deletes every StoredSong sharing this folderName, which
+      // matters here: a paredit-polluted song with 30 autosave records all
+      // share the same folderName, so a single call wipes the whole bunch.
+      await removeSong(song.folderName)
+      onClose()
+    } catch (err) {
+      console.error('Failed to delete:', err)
+      // Reset confirmation state so the user sees the safe state again if
+      // the delete failed for some reason (rare — idb-keyval rarely errors).
+      setIsConfirmingDelete(false)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -175,21 +205,60 @@ export function SongEditModal({ song, onClose }: SongEditModalProps) {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-[#1a1a2e]">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-xs text-[#888] hover:text-[#aaa] transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!hasChanges || isSaving || !title.trim()}
-            className="px-4 py-2 text-xs bg-[#00e5ff15] border border-[#00e5ff40] text-[#00e5ff] rounded-lg hover:bg-[#00e5ff25] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </button>
+        {/* Footer — Delete on the left (destructive), Cancel + Save on the
+            right (constructive). Spacing between them prevents the kind of
+            misclick that would be irreversible. */}
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-[#1a1a2e]">
+          {/* Delete cluster (left). In the unconfirmed state it's a single
+              muted button; clicking it morphs into a louder confirm + an
+              inline Cancel that resets to the safe state. */}
+          {isConfirmingDelete ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDeleteClick}
+                disabled={isDeleting}
+                className="px-4 py-2 text-xs bg-[#ff3a5c20] border border-[#ff3a5c80] text-[#ff3a5c] rounded-lg hover:bg-[#ff3a5c30] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+              >
+                <Trash2 size={12} />
+                {isDeleting ? 'Deleting…' : 'Confirm Delete?'}
+              </button>
+              <button
+                onClick={() => setIsConfirmingDelete(false)}
+                disabled={isDeleting}
+                className="text-xs text-[#888] hover:text-[#aaa] transition-colors px-2"
+              >
+                Keep
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleDeleteClick}
+              disabled={isSaving || isDeleting}
+              className="px-3 py-2 text-xs text-[#888] hover:text-[#ff3a5c] transition-colors flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Permanently remove this song from your library"
+            >
+              <Trash2 size={12} />
+              Delete Song
+            </button>
+          )}
+
+          {/* Save cluster (right) */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              disabled={isDeleting}
+              className="px-4 py-2 text-xs text-[#888] hover:text-[#aaa] transition-colors disabled:opacity-30"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges || isSaving || isDeleting || !title.trim()}
+              className="px-4 py-2 text-xs bg-[#00e5ff15] border border-[#00e5ff40] text-[#00e5ff] rounded-lg hover:bg-[#00e5ff25] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
