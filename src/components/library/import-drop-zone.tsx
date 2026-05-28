@@ -51,7 +51,7 @@ export function ImportDropZone() {
 
   if (isCapacitor()) {
     return (
-      <div className="relative border-2 border-dashed border-[#2a2a3a] hover:border-[#3a3a5a] bg-[#0a0a1208] rounded-lg p-8 text-center transition-all">
+      <div className="relative border-2 border-dashed border-[#2a2a3a] hover:border-[#3a3a5a] bg-[#0d142408] rounded-lg p-8 text-center transition-all">
         {importProgress ? (
           <div className="flex flex-col items-center gap-2">
             <div className="w-5 h-5 border-2 border-[#00e5ff] border-t-transparent rounded-full animate-spin" />
@@ -61,10 +61,7 @@ export function ImportDropZone() {
           <label className="flex flex-col items-center gap-2 cursor-pointer">
             <FileArchive size={24} className="text-[#555]" />
             <span className="text-sm text-[#888]">
-              Pick a .zip song file
-            </span>
-            <span className="text-xs text-[#555] max-w-xs">
-              Drag-and-drop isn't available on Android. Tap to browse for a Paradiddle song zip on your device.
+              Import Zip file
             </span>
             <input
               ref={zipInputRef}
