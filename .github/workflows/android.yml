@@ -73,6 +73,32 @@ jobs:
       - name: Sync Capacitor → Android
         run: npx cap sync android
 
+      # If the committed debug.keystore is missing (first time we run this
+      # workflow before the keystore has been committed back), generate a
+      # fresh one. Standard Android debug defaults — alias/passwords are
+      # well-known and not security-sensitive for debug builds.
+      #
+      # The freshly-generated keystore gets uploaded as an artifact (below),
+      # downloaded once, and committed to android/app/debug.keystore. After
+      # that, this step is a no-op and every CI build signs APKs with the
+      # SAME signature → adb install -r updates in-place without wiping data.
+      - name: Generate debug keystore if missing
+        run: |
+          if [ ! -f android/app/debug.keystore ]; then
+            echo "::warning::Committed debug.keystore not found — generating ephemeral one. Download the 'debug-keystore' artifact from this run and commit it to lock signatures."
+            keytool -genkey -v \
+              -keystore android/app/debug.keystore \
+              -storepass android \
+              -keypass android \
+              -alias androiddebugkey \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          else
+            echo "Using committed debug.keystore (stable signature)"
+          fi
+
       # gradlew is committed by Capacitor but may not retain the executable
       # bit through Windows-checked-in repos. Linux needs it set explicitly.
       - name: Make gradlew executable
@@ -94,4 +120,16 @@ jobs:
           name: drumford-x-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
+          if-no-files-found: error
+
+      # Always upload the keystore that was used. On the first run (when
+      # the repo doesn't have one yet) this is the freshly-generated one
+      # we need to download + commit. On subsequent runs it's just the
+      # committed file mirrored back — harmless.
+      - name: Upload debug keystore artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-keystore
+          path: android/app/debug.keystore
+          retention-days: 7
           if-no-files-found: error
