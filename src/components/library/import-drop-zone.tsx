@@ -21,6 +21,9 @@ import { extractSongZip } from '@/lib/zip-import'
  */
 export function ImportDropZone() {
   const [isDragOver, setIsDragOver] = useState(false)
+  // Surfaced under the zip picker on Android so users actually see what went
+  // wrong — there's no DevTools on a tablet to read console.error from.
+  const [zipError, setZipError] = useState<string | null>(null)
   const importFolder = useLibraryStore((s) => s.importFolder)
   const importFiles = useLibraryStore((s) => s.importFiles)
   const importFromBuffers = useLibraryStore((s) => s.importFromBuffers)
@@ -32,6 +35,7 @@ export function ImportDropZone() {
   const handleZipPick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setZipError(null)
     try {
       const bytes = await file.arrayBuffer()
       const { folderName, files } = await extractSongZip(bytes)
@@ -43,6 +47,8 @@ export function ImportDropZone() {
       await importFromBuffers(finalFolderName, files)
     } catch (err) {
       console.error('[import-zip] extraction failed:', err)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setZipError(`Couldn't import "${file.name}": ${msg}`)
     } finally {
       // Reset the input so picking the same file again still fires onChange
       if (e.target) e.target.value = ''
@@ -51,26 +57,40 @@ export function ImportDropZone() {
 
   if (isCapacitor()) {
     return (
-      <div className="relative border-2 border-dashed border-[#2a2a3a] hover:border-[#3a3a5a] bg-[#0d142408] rounded-lg p-8 text-center transition-all">
-        {importProgress ? (
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-5 h-5 border-2 border-[#00e5ff] border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-[#888]">{importProgress}</span>
+      <div className="flex flex-col gap-2">
+        <div className="relative border-2 border-dashed border-[#2a2a3a] hover:border-[#3a3a5a] bg-[#0d142408] rounded-lg p-8 text-center transition-all">
+          {importProgress ? (
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-5 h-5 border-2 border-[#00e5ff] border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs text-[#888]">{importProgress}</span>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center gap-2 cursor-pointer">
+              <FileArchive size={24} className="text-[#555]" />
+              <span className="text-sm text-[#888]">
+                Import Zip file
+              </span>
+              <input
+                ref={zipInputRef}
+                type="file"
+                accept=".zip,application/zip"
+                className="hidden"
+                onChange={handleZipPick}
+              />
+            </label>
+          )}
+        </div>
+        {zipError && (
+          <div className="flex items-start justify-between gap-3 px-3 py-2 rounded-md border border-[#ff3a5c33] bg-[#ff3a5c10] text-[11px] text-[#ff8a9c]">
+            <span className="flex-1">{zipError}</span>
+            <button
+              onClick={() => setZipError(null)}
+              className="text-[#ff3a5c] hover:text-[#ff5e7a] transition-colors"
+              aria-label="Dismiss error"
+            >
+              ✕
+            </button>
           </div>
-        ) : (
-          <label className="flex flex-col items-center gap-2 cursor-pointer">
-            <FileArchive size={24} className="text-[#555]" />
-            <span className="text-sm text-[#888]">
-              Import Zip file
-            </span>
-            <input
-              ref={zipInputRef}
-              type="file"
-              accept=".zip,application/zip"
-              className="hidden"
-              onChange={handleZipPick}
-            />
-          </label>
         )}
       </div>
     )

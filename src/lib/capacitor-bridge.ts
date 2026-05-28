@@ -118,6 +118,13 @@ async function paradbDownload(
   let received = 0
   const chunks: Uint8Array[] = []
 
+  // CapacitorHttp (enabled in capacitor.config.ts) intercepts fetch() and
+  // resolves the JS Response with the entire payload already buffered
+  // natively — `resp.body` is typically null, so the streaming branch never
+  // runs on Android. We keep it for the rare case Capacitor is disabled or a
+  // future version supports streaming, and fall through to the arrayBuffer
+  // path otherwise. Without a true progress signal there, we emit a single
+  // 0.5 ping so the UI bar moves off zero while the zip is being parsed.
   if (resp.body) {
     const reader = resp.body.getReader()
     while (true) {
@@ -128,6 +135,7 @@ async function paradbDownload(
       if (total > 0) onProgress(Math.min(received / total, 1))
     }
   } else {
+    onProgress(0.5)
     const buf = await resp.arrayBuffer()
     chunks.push(new Uint8Array(buf))
   }

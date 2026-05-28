@@ -36,9 +36,33 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 
-  // Open external links in system browser
+  // Open external links in the system browser, but only if they point at
+  // one of the domains the app legitimately links out to. The renderer is
+  // sandboxed, but `setWindowOpenHandler` will fire for *any* window.open
+  // (including ones triggered by malformed chart data or future bugs) — so
+  // we allow-list rather than open whatever URL shows up.
+  const ALLOWED_EXTERNAL_HOSTS = new Set([
+    'paradb.net',
+    'www.paradb.net',
+    'paradiddleapp.com',
+    'www.paradiddleapp.com',
+    'github.com',
+    'www.github.com',
+  ])
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    try {
+      const parsed = new URL(url)
+      if (
+        (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+        ALLOWED_EXTERNAL_HOSTS.has(parsed.hostname.toLowerCase())
+      ) {
+        shell.openExternal(url)
+      } else {
+        console.warn('[electron] Blocked window.open to non-allow-listed URL:', url)
+      }
+    } catch {
+      // Malformed URL — block silently
+    }
     return { action: 'deny' }
   })
 }

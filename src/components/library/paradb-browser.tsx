@@ -80,7 +80,12 @@ export function ParaDBBrowser() {
    * calls to /api/maps?offset=N&limit=1000.
    */
   const fetchCatalog = useCallback(async () => {
-    if (!window.electronAPI) {
+    // Snapshot the bridge once and narrow it to a local non-null `api`.
+    // Avoids belt-and-suspenders `?.` calls below and removes the only two
+    // remaining direct `window.electronAPI.*` accesses in this file
+    // (the others all use `?.`).
+    const api = window.electronAPI
+    if (!api) {
       setError('ParaDB requires the Electron app — this feature is unavailable in browser mode.')
       return
     }
@@ -88,12 +93,12 @@ export function ParaDBBrowser() {
     setError(null)
     setLoadProgress(0)
 
-    const cleanup = window.electronAPI.onCatalogProgress(({ loaded }) => {
+    const cleanup = api.onCatalogProgress(({ loaded }) => {
       setLoadProgress(loaded)
     })
 
     try {
-      const maps = await window.electronAPI.paradbCatalog()
+      const maps = await api.paradbCatalog()
       const fresh: CachedCatalog = { maps, fetchedAt: Date.now() }
       await saveCatalog(maps)
       setCatalog(fresh)
@@ -151,10 +156,17 @@ export function ParaDBBrowser() {
 
   const handleDownload = useCallback(async (mapId: string) => {
     if (downloading.has(mapId)) return
+    const api = window.electronAPI
+    if (!api) {
+      // The Download button only renders when the catalog is loaded, which
+      // already requires electronAPI — this is a TS-narrowing guard, not a
+      // runtime branch users can hit.
+      return
+    }
     setDownloading((prev) => new Map(prev).set(mapId, 0))
 
     try {
-      const { folderName, files } = await window.electronAPI!.paradbDownload(mapId)
+      const { folderName, files } = await api.paradbDownload(mapId)
       const { useLibraryStore } = await import('@/stores/library-store')
       await useLibraryStore.getState().importFromBuffers(folderName, files)
 
