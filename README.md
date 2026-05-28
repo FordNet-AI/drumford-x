@@ -6,6 +6,10 @@ DrumFord X is a chart visualizer for [Paradiddle](https://paradiddleapp.com), th
 
 Built by **[Fordnet](#about-fordnet)**.
 
+![Highway in action, with the Quick Tune popover open](docs/screenshots/05-quick-tune.jpg)
+
+🎬 [Watch the 30-second demo video](docs/screenshots/demo.mp4) *(plays inline on GitHub when you click)*
+
 ---
 
 ## What it is
@@ -23,6 +27,29 @@ Built by **[Fordnet](#about-fordnet)**.
 - ❌ **Not affiliated with Paradiddle.** Independent fan project. The Paradiddle team is not responsible for this and didn't make it.
 - ❌ **Not a chart authoring tool.** It plays charts you've already authored or downloaded. For authoring, use [the official Paradiddle utilities](https://github.com/Paradiddle-Stuff/ParadiddleUtilities).
 - ❌ **Not in any app store.** Downloads are direct from the GitHub releases page below.
+
+---
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/02-library.jpg" alt="Song library with cover art and difficulty buttons"/></td>
+    <td width="50%"><img src="docs/screenshots/03-paradb.jpg" alt="ParaDB browser with 6,000+ songs, instant search, sort by popularity"/></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><em>Your library — sortable, filterable, cover-art aware</em></td>
+    <td width="50%" align="center"><em>Browse ParaDB — ~6,000 community charts, instant client-side search</em></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/04-kit-setup.jpg" alt="Kit Setup screen — lane reorder, color swatches, kit tuning sliders"/></td>
+    <td width="50%"><img src="docs/screenshots/01-highway.jpg" alt="Highway during playback — kick bars, hi-hat 16ths, snare backbeat"/></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><em>Kit Setup — customize lanes, colors, shapes, and tuning sliders</em></td>
+    <td width="50%" align="center"><em>Highway during playback — Ace of Spades, Hard difficulty</em></td>
+  </tr>
+</table>
 
 ---
 
