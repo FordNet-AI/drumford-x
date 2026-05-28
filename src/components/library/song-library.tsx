@@ -66,14 +66,17 @@ export function SongLibrary() {
   const filteredSongs = useMemo(() => {
     let result = [...songs]
 
-    // Text search
+    // Text search — optional chaining tolerates songs imported with missing
+    // metadata (e.g. unusual .rlrr files where creator wasn't filled in).
+    // A null field simply won't match the query; the song falls out of the
+    // filtered list instead of crashing the whole library tab.
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       result = result.filter(
         (s) =>
-          s.title.toLowerCase().includes(q) ||
-          s.artist.toLowerCase().includes(q) ||
-          s.creator.toLowerCase().includes(q),
+          (s.title?.toLowerCase().includes(q) ?? false) ||
+          (s.artist?.toLowerCase().includes(q) ?? false) ||
+          (s.creator?.toLowerCase().includes(q) ?? false),
       )
     }
 

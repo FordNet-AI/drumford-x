@@ -1,0 +1,13 @@
+{
+	"appId": "com.fordnet.drumfordx",
+	"appName": "DrumFord X",
+	"webDir": "dist",
+	"android": {
+		"allowMixedContent": false
+	},
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": true
+		}
+	}
+}

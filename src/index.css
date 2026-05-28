@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Google Fonts CSS endpoint — returns CSS that contains the *current* gstatic
+   woff2 URLs. We previously hard-coded `https://fonts.gstatic.com/.../v31/...woff2`
+   which 404'd when Google rotated to v32. The CSS endpoint is Google's
+   maintained API; the gstatic URLs underneath are an implementation detail
+   that changes over time. Browsers cache the resolved CSS aggressively, so
+   the extra indirection is effectively free after first load. */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&family=Share+Tech+Mono&display=swap');
+
 @theme {
   --color-bg-primary: #050508;
   --color-bg-secondary: #0d1424;
@@ -26,22 +34,6 @@
   --font-display: 'Orbitron', ui-monospace, monospace;
   --font-mono: 'Share Tech Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
   --font-sans: 'Share Tech Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
-}
-
-@font-face {
-  font-family: 'Orbitron';
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url('https://fonts.gstatic.com/s/orbitron/v31/yMJMMIlzdpvBhQQL_SC3X9yhF25-T1nyGy6xpmIyXjU1pg.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Share Tech Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('https://fonts.gstatic.com/s/sharetechmono/v15/J7aHnp1uDWRBEqV98dVQztYldFcLowEFA87Heg.woff2') format('woff2');
 }
 
 * {
