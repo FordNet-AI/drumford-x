@@ -1,4 +1,5 @@
 import JSZip from 'jszip'
+import { isParediEditAutosave } from '@/lib/rlrr-parser'
 
 /**
  * Generic Paradiddle song zip extractor for the renderer.
@@ -92,6 +93,9 @@ export async function extractSongZip(
     const parts = entry.name.split('/')
     const fileName = parts.length > 1 ? parts.slice(1).join('/') : entry.name
     if (fileName.startsWith('.')) continue
+    // Skip paredit autosaves — Autosave/ subfolders or YYYY.MM.DD-named .rlrr
+    // backups don't represent real difficulties and would clutter the library.
+    if (isParediEditAutosave(fileName)) continue
 
     const buffer = await entry.async('arraybuffer')
     files.push({ name: fileName, data: buffer, type: mimeFor(fileName) })

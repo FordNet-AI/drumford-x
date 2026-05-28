@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { SongMeta, StoredSong, Song } from '@/types/song'
 import { getAllSongMetas, storeSong, getStoredSong, deleteStoredSong, getSongIdByTitleDifficulty, getAllIdsForFolder, updateSongMeta } from '@/lib/song-storage'
-import { parseRlrr, generateId, decodeRlrr } from '@/lib/rlrr-parser'
+import { parseRlrr, generateId, decodeRlrr, isParediEditAutosave } from '@/lib/rlrr-parser'
 import { useKitStore } from '@/stores/kit-store'
 
 export interface ImportWarning {
@@ -80,13 +80,23 @@ async function collectFiles(entries: FileSystemEntry[]): Promise<CollectedFiles[
       continue
     }
 
+    // Skip Autosave folders entirely — paredit dumps editor backups in
+    // there, and we don't want them appearing as fake difficulties.
+    if (entry.name.toLowerCase() === 'autosave') {
+      console.log('[import] Skipping Autosave folder:', entry.name)
+      continue
+    }
+
     const dirEntry = entry as FileSystemDirectoryEntry
     const children = await readAllEntries(dirEntry.createReader())
     console.log('[import] Dir', entry.name, '→', children.length, 'children:', children.map(c => c.name).join(', '))
 
     // Check if this directory itself is a song folder (has .rlrr files)
+    // — but ignore autosave-named .rlrr files when making that decision,
+    // otherwise a folder that contains *only* autosaves would be treated
+    // as a real song folder.
     const hasRlrr = children.some(
-      (c) => c.isFile && c.name.toLowerCase().endsWith('.rlrr')
+      (c) => c.isFile && c.name.toLowerCase().endsWith('.rlrr') && !isParediEditAutosave(c.name)
     )
 
     if (hasRlrr) {
@@ -101,11 +111,15 @@ async function collectFiles(entries: FileSystemEntry[]): Promise<CollectedFiles[
           console.log('[import]   Skipping non-dir child:', child.name)
           continue
         }
+        if (child.name.toLowerCase() === 'autosave') {
+          console.log('[import]   Skipping nested Autosave folder:', child.name)
+          continue
+        }
         const subDir = child as FileSystemDirectoryEntry
         const subChildren = await readAllEntries(subDir.createReader())
         console.log('[import]   Subdir', child.name, '→', subChildren.length, 'files:', subChildren.map(c => c.name).join(', '))
         const subHasRlrr = subChildren.some(
-          (c) => c.isFile && c.name.toLowerCase().endsWith('.rlrr')
+          (c) => c.isFile && c.name.toLowerCase().endsWith('.rlrr') && !isParediEditAutosave(c.name)
         )
         if (subHasRlrr) {
           console.log('[import]   Subdir', child.name, 'has .rlrr — collecting')
@@ -141,6 +155,8 @@ async function collectSingleFolder(
     const lower = file.name.toLowerCase()
 
     if (lower.endsWith('.rlrr')) {
+      // Skip paredit autosaves so they don't appear as fake difficulties
+      if (isParediEditAutosave(file.name)) continue
       result.rlrrFiles.push({ name: file.name, file })
     } else if (lower.endsWith('.ogg') || lower.endsWith('.mp3') || lower.endsWith('.wav')) {
       result.audioFiles.set(file.name, file)
@@ -176,6 +192,9 @@ function classifyFiles(files: File[]): CollectedFiles[] {
 
   for (const file of files) {
     const rel = file.webkitRelativePath || file.name
+    // Drop paredit autosaves before grouping — uses the full relative path
+    // so the `/Autosave/` segment check works regardless of nesting depth.
+    if (isParediEditAutosave(rel)) continue
     const parts = rel.split('/')
     // Determine the grouping key:
     // "diddle/Iris/song.ogg" → 3 parts → group key "Iris"
@@ -397,6 +416,10 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
 
       for (const f of files) {
         const lower = f.name.toLowerCase()
+        // Drop paredit autosaves — the f.name from the zip includes the
+        // relative path, so the predicate catches both folder and filename
+        // patterns.
+        if (lower.endsWith('.rlrr') && isParediEditAutosave(f.name)) continue
         // Create a File-like object from the ArrayBuffer
         const blob = new Blob([f.data], { type: f.type })
         const file = new File([blob], f.name, { type: f.type })
