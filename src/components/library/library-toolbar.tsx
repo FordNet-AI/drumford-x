@@ -1,4 +1,4 @@
-import { Search, ArrowUpDown, ChevronDown } from 'lucide-react'
+import { Search, ArrowUpDown, ChevronDown, Image, ImageOff } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 
 export type SortField = 'title' | 'artist' | 'complexity' | 'duration' | 'dateAdded'
@@ -21,6 +21,9 @@ interface LibraryToolbarProps {
   difficultyFilter: string | null
   onDifficultyFilterChange: (diff: string | null) => void
   availableDifficulties: string[]
+  /** Whether album art is hidden across all cards (compact mode). */
+  hideArt: boolean
+  onHideArtChange: (next: boolean) => void
 }
 
 export function LibraryToolbar({
@@ -32,6 +35,8 @@ export function LibraryToolbar({
   difficultyFilter,
   onDifficultyFilterChange,
   availableDifficulties,
+  hideArt,
+  onHideArtChange,
 }: LibraryToolbarProps) {
   const [sortOpen, setSortOpen] = useState(false)
   const sortRef = useRef<HTMLDivElement>(null)
@@ -65,6 +70,17 @@ export function LibraryToolbar({
             className="w-full pl-8 pr-3 py-1.5 bg-[#050508] border border-[#1a1a2e] rounded-lg text-xs text-[#ddd] placeholder:text-[#333] focus:outline-none focus:border-[#00e5ff40] transition-colors"
           />
         </div>
+
+        {/* Hide-art toggle — show/hide album covers across the whole library.
+            Compact mode (art hidden) makes cards ~70% shorter, lets you scan
+            more songs at once. Choice persists across sessions via the parent. */}
+        <button
+          onClick={() => onHideArtChange(!hideArt)}
+          title={hideArt ? 'Show album art' : 'Hide album art (compact mode)'}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[#888] bg-[#050508] border border-[#1a1a2e] rounded-lg hover:border-[#2a2a4a] transition-colors"
+        >
+          {hideArt ? <ImageOff size={12} /> : <Image size={12} />}
+        </button>
 
         {/* Sort dropdown */}
         <div className="relative" ref={sortRef}>
