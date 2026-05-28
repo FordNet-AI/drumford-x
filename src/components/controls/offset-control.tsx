@@ -86,7 +86,7 @@ export function OffsetControl() {
               cancelDraft()
             }
           }}
-          className="w-[52px] h-5 px-1 text-[10px] tabular-nums text-center bg-[#0a0a12] border border-[#00e5ff60] rounded text-[#00e5ff] focus:outline-none focus:border-[#00e5ff] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="w-[52px] h-5 px-1 text-[10px] tabular-nums text-center bg-[#0d1424] border border-[#00e5ff60] rounded text-[#00e5ff] focus:outline-none focus:border-[#00e5ff] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
       ) : (
         <span

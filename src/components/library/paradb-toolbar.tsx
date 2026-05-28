@@ -96,7 +96,7 @@ export function ParaDBToolbar({
         </button>
 
         {sortOpen && (
-          <div className="absolute right-0 top-full mt-1 bg-[#0a0a12] border border-[#1a1a2e] rounded-lg shadow-xl z-30 min-w-[160px] py-1">
+          <div className="absolute right-0 top-full mt-1 bg-[#0d1424] border border-[#1a1a2e] rounded-lg shadow-xl z-30 min-w-[160px] py-1">
             {SORT_OPTIONS.map((opt) => (
               <button
                 key={opt.value}

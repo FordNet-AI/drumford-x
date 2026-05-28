@@ -268,7 +268,7 @@ export function ParaDBBrowser() {
           <select
             value={searchField}
             onChange={(e) => setSearchField(e.target.value as SearchField)}
-            className="bg-[#0a0a12] border border-[#1a1a2e] rounded-lg px-3 text-sm text-[#aaa] focus:outline-none focus:border-[#00e5ff40] cursor-pointer"
+            className="bg-[#0d1424] border border-[#1a1a2e] rounded-lg px-3 text-sm text-[#aaa] focus:outline-none focus:border-[#00e5ff40] cursor-pointer"
             title="What field to search"
           >
             {SEARCH_FIELDS.map((f) => (
@@ -284,7 +284,7 @@ export function ParaDBBrowser() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Filter ${totalCount.toLocaleString()} ParaDB songs…`}
-              className="w-full pl-10 pr-10 py-2.5 bg-[#0a0a12] border border-[#1a1a2e] rounded-lg text-sm text-[#ddd] placeholder:text-[#444] focus:outline-none focus:border-[#00e5ff40] transition-colors"
+              className="w-full pl-10 pr-10 py-2.5 bg-[#0d1424] border border-[#1a1a2e] rounded-lg text-sm text-[#ddd] placeholder:text-[#444] focus:outline-none focus:border-[#00e5ff40] transition-colors"
             />
             {query && (
               <button

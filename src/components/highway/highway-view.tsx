@@ -181,7 +181,7 @@ export function HighwayView() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-4 py-2 bg-[#0a0a12] border-b border-[#1a1a2e]">
+      <div className="flex items-center gap-3 px-4 py-2 bg-[#0d1424] border-b border-[#1a1a2e]">
         <button
           onClick={handleBack}
           className="p-1.5 text-[#888] hover:text-[#00e5ff] transition-colors"
@@ -201,7 +201,7 @@ export function HighwayView() {
       <div className="relative flex flex-col flex-1 min-h-0">
         <HighwayCanvas />
         {!audioReady && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a12]/80 pointer-events-none">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1424]/80 pointer-events-none">
             <div className="flex items-center gap-2 text-[#888] text-sm">
               <div className="w-4 h-4 border-2 border-[#00e5ff] border-t-transparent rounded-full animate-spin" />
               Loading audio…

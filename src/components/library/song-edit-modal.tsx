@@ -84,7 +84,7 @@ export function SongEditModal({ song, onClose }: SongEditModalProps) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-[#0a0a12] border border-[#1a1a2e] rounded-xl shadow-2xl"
+        className="w-full max-w-md bg-[#0d1424] border border-[#1a1a2e] rounded-xl shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

@@ -66,7 +66,7 @@ export function KitSetup() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex items-center gap-3 px-6 py-3 border-b border-[#1a1a2e] bg-[#0a0a12]">
+      <header className="flex items-center gap-3 px-6 py-3 border-b border-[#1a1a2e] bg-[#0d1424]">
         <button
           onClick={() => setScreen('library')}
           className="p-1.5 text-[#888] hover:text-[#00e5ff] transition-colors"
@@ -150,7 +150,7 @@ export function KitSetup() {
         {/* Note style */}
         <section>
           <h2 className="text-xs tracking-[2px] text-[#888] mb-3">NOTE STYLE</h2>
-          <div className="bg-[#0a0a12] border border-[#1a1a2e] rounded p-4 max-w-md space-y-5">
+          <div className="bg-[#0d1424] border border-[#1a1a2e] rounded p-4 max-w-md space-y-5">
             {/* Thickness */}
             <div>
               <label className="flex items-center justify-between mb-2">
@@ -334,7 +334,7 @@ function LaneRow({
 }) {
   return (
     <div
-      className={`flex items-center gap-2 p-2 border border-[#1a1a2e] rounded bg-[#0a0a12] ${
+      className={`flex items-center gap-2 p-2 border border-[#1a1a2e] rounded bg-[#0d1424] ${
         !lane.enabled ? 'opacity-50' : ''
       }`}
     >
@@ -456,7 +456,7 @@ function InstrumentMapping({ songCount }: { songCount: number }) {
   const allClasses = Object.keys(DEFAULT_CLASS_TO_LANE).sort()
 
   return (
-    <div className="mt-3 bg-[#0a0a12] border border-[#1a1a2e] rounded p-4">
+    <div className="mt-3 bg-[#0d1424] border border-[#1a1a2e] rounded p-4">
       <p className="text-xs text-[#555] mb-3">
         Override which lane a specific Paradiddle drum maps to. Empty = use default mapping.
         {songCount === 0 && ' Import some songs to see what instruments your library uses.'}

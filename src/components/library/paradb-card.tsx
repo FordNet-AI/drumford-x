@@ -17,7 +17,7 @@ export function ParaDBCard({ song, downloadState, onDownload }: ParaDBCardProps)
   const isDone = downloadState === 2
 
   return (
-    <div className="bg-[#0a0a12] border border-[#1a1a2e] rounded-lg overflow-hidden hover:border-[#2a2a4a] transition-colors group">
+    <div className="bg-[#0d1424] border border-[#1a1a2e] rounded-lg overflow-hidden hover:border-[#2a2a4a] transition-colors group">
       {/* Cover art */}
       <div className="aspect-square relative bg-[#050508] overflow-hidden">
         {song.coverUrl ? (

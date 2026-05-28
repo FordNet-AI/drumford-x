@@ -36,7 +36,7 @@ export function ParaDBRow({ song, downloadState, onDownload }: ParaDBRowProps) {
   const isDone = downloadState === 2
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2 bg-[#0a0a12] border border-[#1a1a2e] rounded-md hover:border-[#2a2a4a] transition-colors group">
+    <div className="flex items-center gap-3 px-3 py-2 bg-[#0d1424] border border-[#1a1a2e] rounded-md hover:border-[#2a2a4a] transition-colors group">
       {/* Thumbnail */}
       <div className="flex-shrink-0 w-10 h-10 rounded bg-[#050508] overflow-hidden border border-[#1a1a2e]">
         {song.coverUrl ? (

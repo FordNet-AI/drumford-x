@@ -136,7 +136,7 @@ export function ImportDropZone() {
         relative border-2 border-dashed rounded-lg p-8 text-center transition-all cursor-pointer
         ${isDragOver
           ? 'border-[#00e5ff] bg-[#00e5ff08]'
-          : 'border-[#2a2a3a] hover:border-[#3a3a5a] bg-[#0a0a1208]'
+          : 'border-[#2a2a3a] hover:border-[#3a3a5a] bg-[#0d142408]'
         }
       `}
     >

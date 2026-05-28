@@ -51,7 +51,7 @@ export function QuickKitPopover() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="flex items-center justify-center w-9 h-9 bg-[#0a0a12]/80 backdrop-blur-sm border border-[#1a1a2e] hover:border-[#00e5ff] text-[#888] hover:text-[#00e5ff] rounded-md transition-colors shadow-lg"
+          className="flex items-center justify-center w-9 h-9 bg-[#0d1424]/80 backdrop-blur-sm border border-[#1a1a2e] hover:border-[#00e5ff] text-[#888] hover:text-[#00e5ff] rounded-md transition-colors shadow-lg"
           title="Quick kit tuner — colors, thickness, glow"
         >
           <Palette size={16} />
@@ -60,7 +60,7 @@ export function QuickKitPopover() {
 
       {/* Popover */}
       {open && (
-        <div className="w-[320px] bg-[#0a0a12]/95 backdrop-blur-md border border-[#1a1a2e] rounded-lg shadow-2xl p-4">
+        <div className="w-[320px] bg-[#0d1424]/95 backdrop-blur-md border border-[#1a1a2e] rounded-lg shadow-2xl p-4">
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs tracking-[2px] text-[#aaa]">QUICK TUNE</h3>

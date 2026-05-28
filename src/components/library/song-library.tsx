@@ -220,7 +220,7 @@ export function SongLibrary() {
           <span className="text-[#00e5ff] text-lg">Drop song folder to import</span>
         </div>
       )}
-      <header className="px-6 py-4 border-b border-[#1a1a2e] bg-[#0a0a12] flex items-center justify-between">
+      <header className="px-6 py-4 border-b border-[#1a1a2e] bg-[#0d1424] flex items-center justify-between">
         <div>
           <h1
             className="text-2xl tracking-[4px] font-black"

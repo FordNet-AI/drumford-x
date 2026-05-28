@@ -56,7 +56,7 @@ export function SongCard({ song, onPlay, onEdit }: SongCardProps) {
   return (
     <div
       onClick={handleCardClick}
-      className={`bg-[#0a0a12] border border-[#1a1a2e] rounded-lg overflow-hidden hover:border-[#2a2a4a] transition-colors group ${song.difficulties.length === 1 ? 'cursor-pointer' : ''}`}
+      className={`bg-[#0d1424] border border-[#1a1a2e] rounded-lg overflow-hidden hover:border-[#2a2a4a] transition-colors group ${song.difficulties.length === 1 ? 'cursor-pointer' : ''}`}
     >
       <div className="aspect-square relative bg-[#050508] overflow-hidden">
         {coverUrl ? (
