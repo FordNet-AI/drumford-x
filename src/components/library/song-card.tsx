@@ -69,7 +69,15 @@ export function SongCard({ song, onPlay, onEdit, hideArt }: SongCardProps) {
     }
   }, [song.coverImageBlob, hideArt])
 
-  const difficultyColsClass = gridColsForCount(song.difficulties.length)
+  // Deduplicate difficulties — a song imported BEFORE the paredit autosave
+  // filter shipped will have multiple "Easy" / "Medium" / "Hard" entries
+  // because each autosave became its own StoredSong record. Until the user
+  // deletes and re-imports, dedup makes the card render cleanly with one
+  // button per unique difficulty. Order-preserving: keeps the first
+  // occurrence, which matches the order availableDifficulties returns
+  // (sorted easiest → hardest via sortDifficulties).
+  const uniqueDifficulties = Array.from(new Set(song.difficulties))
+  const difficultyColsClass = gridColsForCount(uniqueDifficulties.length)
 
   return (
     <div className="bg-[#0d1424] border border-[#1a1a2e] rounded-lg overflow-hidden hover:border-[#2a2a4a] transition-colors group">
@@ -155,7 +163,7 @@ export function SongCard({ song, onPlay, onEdit, hideArt }: SongCardProps) {
             regardless of how many difficulties exist. Consistency over a
             tiny convenience win for single-difficulty songs. */}
         <div className={`grid gap-1 mt-3 ${difficultyColsClass}`}>
-          {song.difficulties.map((diff) => (
+          {uniqueDifficulties.map((diff) => (
             <button
               key={diff}
               onClick={() => onPlay(diff)}
