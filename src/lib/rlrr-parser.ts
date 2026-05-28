@@ -213,13 +213,14 @@ const DIFFICULTY_RANK: Record<string, number> = Object.fromEntries(
   DIFFICULTY_ORDER.map((d, i) => [d.toLowerCase(), i]),
 )
 
-/** Compare two difficulty strings in canonical (easiest → hardest) order. */
+/** Compare two difficulty strings in canonical (easiest → hardest) order.
+ *  Null/empty difficulties sort to the end rather than crashing the compare. */
 export function compareDifficulty(a: string, b: string): number {
-  const ra = DIFFICULTY_RANK[a.toLowerCase()] ?? Number.MAX_SAFE_INTEGER
-  const rb = DIFFICULTY_RANK[b.toLowerCase()] ?? Number.MAX_SAFE_INTEGER
+  const ra = DIFFICULTY_RANK[a?.toLowerCase() ?? ''] ?? Number.MAX_SAFE_INTEGER
+  const rb = DIFFICULTY_RANK[b?.toLowerCase() ?? ''] ?? Number.MAX_SAFE_INTEGER
   if (ra !== rb) return ra - rb
   // Fall back to alphabetical for unknown difficulties
-  return a.localeCompare(b)
+  return (a ?? '').localeCompare(b ?? '')
 }
 
 /** Returns a new array sorted easiest → hardest. */

@@ -199,17 +199,21 @@ export function ParaDBBrowser() {
 
     let filtered = catalog.maps
     if (q) {
+      // ParaDB API occasionally returns entries with null title / artist /
+      // creator (legacy uploads, broken metadata). Optional chaining means
+      // a null field simply doesn't match — better than crashing the whole
+      // tab. `?? false` ensures the filter predicate always returns a bool.
       filtered = catalog.maps.filter((m) => {
         switch (searchField) {
-          case 'title':   return m.title.toLowerCase().includes(q)
-          case 'artist':  return m.artist.toLowerCase().includes(q)
-          case 'creator': return m.creator.toLowerCase().includes(q)
+          case 'title':   return m.title?.toLowerCase().includes(q) ?? false
+          case 'artist':  return m.artist?.toLowerCase().includes(q) ?? false
+          case 'creator': return m.creator?.toLowerCase().includes(q) ?? false
           case 'all':
           default:
             return (
-              m.title.toLowerCase().includes(q) ||
-              m.artist.toLowerCase().includes(q) ||
-              m.creator.toLowerCase().includes(q)
+              (m.title?.toLowerCase().includes(q) ?? false) ||
+              (m.artist?.toLowerCase().includes(q) ?? false) ||
+              (m.creator?.toLowerCase().includes(q) ?? false)
             )
         }
       })

@@ -9,7 +9,7 @@
 export function FordnetLogo() {
   return (
     <img
-      src="/fordnet-logo.jpg"
+      src="./fordnet-logo.jpg"
       alt="FordNet Ai"
       height={26}
       className="h-[26px] w-auto select-none rounded-sm opacity-85 hover:opacity-100 transition-opacity"
