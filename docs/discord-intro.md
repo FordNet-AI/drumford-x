@@ -23,7 +23,7 @@ Three lengths depending on the channel vibe. Pick whichever fits.
 >
 > **It's alpha.** I'm the only person who's tested it. Looking for ~5 brave souls who'd like to try it and tell me what breaks.
 >
-> Download + install instructions: https://github.com/timgfordham-cell/drumford-x/releases/latest
+> Download + install instructions: https://github.com/FordNet-AI/drumford-x/releases/latest
 >
 > Bug reports / questions / general thoughts welcome in this thread or as GitHub issues. Cheers 🥁
 
@@ -35,13 +35,13 @@ Three lengths depending on the channel vibe. Pick whichever fits.
 >
 > It's an alpha. Looking for testers willing to find the bugs.
 >
-> 🔗 https://github.com/timgfordham-cell/drumford-x/releases/latest
+> 🔗 https://github.com/FordNet-AI/drumford-x/releases/latest
 
 ---
 
 ## Short version (for #links or quick share)
 
-> Flat-screen Paradiddle player (Windows + Android alpha): https://github.com/timgfordham-cell/drumford-x/releases/latest 🥁
+> Flat-screen Paradiddle player (Windows + Android alpha): https://github.com/FordNet-AI/drumford-x/releases/latest 🥁
 
 ---
 
