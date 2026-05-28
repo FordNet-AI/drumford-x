@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Paradiddle drum chart visualizer for flat screens. Built by Fordnet.",
   "author": "Tim @ Fordnet",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "main": "electron-dist/main.cjs",
   "scripts": {
