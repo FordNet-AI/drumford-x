@@ -57,7 +57,7 @@ Built by **[Fordnet](#about-fordnet)**.
 
 ### Windows (portable, no installer)
 
-1. Download **`drumford-x-v0.1.0-win-x64.zip`** from the [latest release](https://github.com/FordNet-AI/drumford-x/releases/latest)
+1. Download **`drumford-x-v0.1.1-win-x64.zip`** from the [latest release](https://github.com/FordNet-AI/drumford-x/releases/latest)
 2. Right-click → **Extract All** to a folder of your choice (e.g. `C:\Apps\DrumFord X\`)
 3. Double-click **`DrumFord X.exe`** to launch
 4. **First-time warning:** Windows SmartScreen may show "Windows protected your PC" because this is an unsigned debug build. Click **"More info"** → **"Run anyway"**. This is expected for an alpha — code signing requires a paid certificate we haven't bothered with yet.
@@ -66,7 +66,7 @@ To uninstall, just delete the folder. No registry changes, no system bloat.
 
 ### Android (APK sideload)
 
-1. Download **`drumford-x-v0.1.0-android.apk`** from the [latest release](https://github.com/FordNet-AI/drumford-x/releases/latest)
+1. Download **`drumford-x-v0.1.1-android.apk`** from the [latest release](https://github.com/FordNet-AI/drumford-x/releases/latest)
 2. On your Android device, open the APK file via your file manager or browser downloads
 3. Android will say "This type of file can harm your device" — that's the generic warning for non-Play-Store APKs. Tap **Install anyway** (or "Install from this source" once you grant permission).
 4. **Samsung note:** if you have a Galaxy device, you may need to disable **Auto Blocker** first (Settings → Security and privacy → Auto Blocker → OFF). Samsung blocks sideloaded APKs by default.
