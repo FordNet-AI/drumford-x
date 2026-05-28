@@ -230,7 +230,6 @@ export function SongLibrary() {
             <span className="text-[#ff3a5c]">FORD</span>
             <span className="text-[#888] ml-2 text-lg">X</span>
           </h1>
-          <p className="text-xs text-[#555] mt-1">Paradiddle for flat screens</p>
         </div>
         <FordnetLogo />
       </header>
