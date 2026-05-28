@@ -16,6 +16,7 @@
     "start": "npm run build:electron && electron .",
     "preview": "vite preview",
     "icon": "node scripts/generate-icon.cjs",
+    "android:icons": "node scripts/generate-android-icons.cjs",
     "dist": "npm run build && electron-builder",
     "android:sync": "npm run build:renderer && cap sync android",
     "android:open": "npm run android:sync && cap open android",
