@@ -2,6 +2,21 @@ import AdmZip from 'adm-zip'
 
 const PARADB_BASE = 'https://paradb.net'
 
+/**
+ * Recognise a paredit autosave file path so we can drop those entries
+ * before they cross the IPC boundary into the renderer. paredit writes
+ * timestamped backup `.rlrr` files into an `Autosave/` subfolder; without
+ * filtering, every backup ends up as a fake "difficulty" in the user's
+ * library. Duplicated here from src/lib/rlrr-parser.ts because the
+ * Electron main process can't import from the renderer's ESM tree.
+ */
+function isParediEditAutosave(path: string): boolean {
+  const lower = path.toLowerCase()
+  if (lower.includes('/autosave/') || lower.startsWith('autosave/')) return true
+  const base = lower.split('/').pop() ?? lower
+  return /^\d{4}\.\d{2}\.\d{2} - \d{2}\.\d{2}\.\d{2}_.+\.rlrr$/.test(base)
+}
+
 interface ParaDBDifficulty {
   difficulty: string | null
   difficultyName: string
@@ -209,6 +224,12 @@ export async function downloadAndExtract(
     if (fileName.startsWith('.') || fileName.startsWith('__MACOSX')) continue
     // Also skip __MACOSX in the full path
     if (entryName.includes('__MACOSX')) continue
+    // Skip paredit autosaves — fileName excludes the top-level song
+    // folder but retains any nested path like `Autosave/2025.10.14...rlrr`,
+    // so the predicate catches both folder-based and filename-based cases.
+    // Filtering here saves IPC bandwidth and keeps the renderer's
+    // import logic simple.
+    if (isParediEditAutosave(fileName)) continue
 
     const buffer = entry.getData()
     const lower = fileName.toLowerCase()

@@ -227,3 +227,32 @@ export function compareDifficulty(a: string, b: string): number {
 export function sortDifficulties(diffs: string[]): string[] {
   return [...diffs].sort(compareDifficulty)
 }
+
+/**
+ * Recognise a file path that looks like a paredit autosave artefact
+ * rather than an authored chart difficulty.
+ *
+ * paredit (a community-built `.rlrr` editor) writes timestamped backups
+ * to an `Autosave/` subfolder while the user edits. If an author zips
+ * up their working directory and uploads it to ParaDB, those backups
+ * end up in the song zip — and our import treats each `.rlrr` as a
+ * "difficulty," so a song with 30 autosaves shows 32 buttons on its
+ * library card. Pollutes the UI and confuses users.
+ *
+ * Two patterns to detect:
+ *   1. Path contains an `Autosave/` segment (case-insensitive)
+ *   2. Filename matches `YYYY.MM.DD - HH.mm.ss_*.rlrr`
+ *      (paredit's autosave naming convention)
+ *
+ * The predicate accepts either a bare filename or a relative path; the
+ * Autosave-folder check looks at the full path while the timestamp
+ * pattern looks at the basename.
+ */
+export function isParediEditAutosave(path: string): boolean {
+  const lower = path.toLowerCase()
+  // Path-based: any `Autosave/` segment anywhere in the path
+  if (lower.includes('/autosave/') || lower.startsWith('autosave/')) return true
+  // Filename-based: paredit's `YYYY.MM.DD - HH.mm.ss_NAME.rlrr` pattern
+  const base = lower.split('/').pop() ?? lower
+  return /^\d{4}\.\d{2}\.\d{2} - \d{2}\.\d{2}\.\d{2}_.+\.rlrr$/.test(base)
+}
