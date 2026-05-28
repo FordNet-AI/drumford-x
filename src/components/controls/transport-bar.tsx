@@ -99,7 +99,7 @@ export function TransportBar({ onSeek }: { onSeek: (time: number) => void }) {
   }, [updateBpmDisplay])
 
   return (
-    <div className="flex items-center gap-4 px-4 py-2 bg-[#0a0a12] border-t border-[#1a1a2e]">
+    <div className="flex items-center gap-4 px-4 py-2 bg-[#0d1424] border-t border-[#1a1a2e]">
       <button
         onClick={handleRestart}
         className="p-2 text-[#888] hover:text-[#00e5ff] transition-colors"
