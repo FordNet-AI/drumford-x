@@ -2,9 +2,8 @@ import { useEffect, useCallback, useState, useMemo } from 'react'
 import { useLibraryStore } from '@/stores/library-store'
 import { usePlayerStore } from '@/stores/player-store'
 import { useUIStore } from '@/stores/ui-store'
-import { parseRlrr, decodeRlrr, generateId, sortDifficulties } from '@/lib/rlrr-parser'
-import { storeSong } from '@/lib/song-storage'
-import type { StoredSong, SongMeta } from '@/types/song'
+import { sortDifficulties } from '@/lib/rlrr-parser'
+import type { SongMeta } from '@/types/song'
 import { ImportDropZone } from './import-drop-zone'
 import { ImportToast } from './import-toast'
 import { SongCard } from './song-card'
@@ -166,45 +165,6 @@ export function SongLibrary() {
     }
   }, [importFolder, importFiles])
 
-  const loadDemo = useCallback(async () => {
-    try {
-      const rlrrResp = await fetch('/demo/Everywhere_Expert.rlrr')
-      const rlrrBuffer = await rlrrResp.arrayBuffer()
-      const json = decodeRlrr(rlrrBuffer)
-      const parsed = parseRlrr(json, 'Everywhere_Expert.rlrr')
-
-      const [songResp, drumResp, coverResp] = await Promise.all([
-        fetch('/demo/Everywhere.ogg'),
-        fetch('/demo/1_Everywhere_(Drums).ogg'),
-        fetch('/demo/Cover 2.jpg'),
-      ])
-
-      const songBlob = await songResp.blob()
-      const drumBlob = await drumResp.blob()
-      const coverBlob = await coverResp.blob()
-
-      const stored: StoredSong = {
-        id: generateId(),
-        title: parsed.meta.title,
-        artist: parsed.meta.artist,
-        creator: parsed.meta.creator,
-        duration: parsed.meta.duration,
-        complexity: parsed.meta.complexity,
-        difficulty: parsed.difficulty,
-        coverImageBlob: coverBlob,
-        folderName: 'Everywhere',
-        rlrrJson: json,
-        songTrackBlobs: [songBlob],
-        drumTrackBlobs: [drumBlob],
-      }
-
-      await storeSong(stored)
-      await loadLibrary()
-    } catch (err) {
-      console.error('Failed to load demo:', err)
-    }
-  }, [loadLibrary])
-
   const handlePlay = async (song: typeof songs[number], difficulty: string) => {
     try {
       const fullSong = await loadSongForPlayback(song.title, difficulty, song.folderName)
@@ -273,10 +233,10 @@ export function SongLibrary() {
                   }
                 </p>
                 <button
-                  onClick={loadDemo}
+                  onClick={() => setActiveTab('paradb')}
                   className="mt-4 px-4 py-2 text-xs border border-[#1a1a2e] rounded hover:border-[#00e5ff] hover:text-[#00e5ff] transition-colors text-[#888]"
                 >
-                  Load Demo Song
+                  Browse ParaDB →
                 </button>
               </div>
             ) : (

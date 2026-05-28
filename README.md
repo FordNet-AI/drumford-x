@@ -210,3 +210,9 @@ Fordnet is the indie label behind DrumFord X. Built by Tim — drummer, builder,
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+**Trademark notice:** *DrumFord X* and *Fordnet* are trademarks of Fordnet. The MIT license grants permission to use the source code; it does not grant permission to use these names or the Fordnet logo on derivative works. If you fork the project, please rename your fork.
+
+## Notice
+
+See [NOTICE.md](NOTICE.md) for the formal Paradiddle attribution and a summary of what this project does and doesn't redistribute.
