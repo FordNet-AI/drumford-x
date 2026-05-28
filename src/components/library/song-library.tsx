@@ -36,6 +36,17 @@ export function SongLibrary() {
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [difficultyFilter, setDifficultyFilter] = useState<string | null>(null)
 
+  // "Hide album art" preference — persisted across sessions in localStorage.
+  // When true, song cards render text-only (no cover-art block), letting the
+  // user scan ~3× more songs per screen for fast navigation.
+  const [hideArt, setHideArt] = useState<boolean>(() => {
+    return localStorage.getItem('drumford-library-hide-art') === 'true'
+  })
+  const handleHideArtChange = useCallback((next: boolean) => {
+    setHideArt(next)
+    localStorage.setItem('drumford-library-hide-art', String(next))
+  }, [])
+
   // Edit modal state
   const [editingSong, setEditingSong] = useState<SongMeta | null>(null)
 
@@ -280,6 +291,8 @@ export function SongLibrary() {
                     difficultyFilter={difficultyFilter}
                     onDifficultyFilterChange={setDifficultyFilter}
                     availableDifficulties={availableDifficulties}
+                    hideArt={hideArt}
+                    onHideArtChange={handleHideArtChange}
                   />
                 </div>
 
@@ -294,13 +307,24 @@ export function SongLibrary() {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mt-4">
+                  // Grid density adapts to hide-art mode: with art the cards
+                  // are tall (aspect-square cover) so we cap at 6 cols; without
+                  // art the cards are ~70% shorter so we can fit 8 cols on
+                  // wide screens for faster scanning.
+                  <div
+                    className={
+                      hideArt
+                        ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3 mt-4'
+                        : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mt-4'
+                    }
+                  >
                     {filteredSongs.map((song) => (
                       <SongCard
                         key={song.folderName}
                         song={song}
                         onPlay={(diff) => handlePlay(song, diff)}
                         onEdit={() => setEditingSong(song)}
+                        hideArt={hideArt}
                       />
                     ))}
                   </div>
