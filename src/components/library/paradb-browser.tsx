@@ -46,7 +46,12 @@ export function ParaDBBrowser() {
   const [error, setError] = useState<string | null>(null)
 
   const [query, setQuery] = useState('')
-  const [searchField, setSearchField] = useState<SearchField>('all')
+  // Default to 'title' — typing a song name is the overwhelmingly common
+  // search intent. The 'all' option exists for broader search but lives
+  // behind an explicit user choice to avoid landing on a code path that
+  // was historically the buggiest (it iterates 3 fields per map across the
+  // entire 6,000-entry catalog and was crashing when any field was null).
+  const [searchField, setSearchField] = useState<SearchField>('title')
 
   // Track which songs are currently downloading
   const [downloading, setDownloading] = useState<Map<string, number>>(new Map())
@@ -203,7 +208,11 @@ export function ParaDBBrowser() {
       // creator (legacy uploads, broken metadata). Optional chaining means
       // a null field simply doesn't match — better than crashing the whole
       // tab. `?? false` ensures the filter predicate always returns a bool.
+      // The outermost `if (!m)` is a belt-and-suspenders guard: a corrupted
+      // cached catalog (e.g. from an interrupted IndexedDB write) could
+      // contain null entries that would crash on `m.title` access.
       filtered = catalog.maps.filter((m) => {
+        if (!m) return false
         switch (searchField) {
           case 'title':   return m.title?.toLowerCase().includes(q) ?? false
           case 'artist':  return m.artist?.toLowerCase().includes(q) ?? false
