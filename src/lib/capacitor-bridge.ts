@@ -1,4 +1,4 @@
-import JSZip from 'jszip'
+import { extractSongZip } from './zip-import'
 
 /**
  * Capacitor "main process" stand-in.
@@ -132,7 +132,7 @@ async function paradbDownload(
     chunks.push(new Uint8Array(buf))
   }
 
-  // Combine into one buffer
+  // Combine the streamed chunks into one buffer
   const total2 = chunks.reduce((acc, c) => acc + c.length, 0)
   const merged = new Uint8Array(total2)
   let pos = 0
@@ -141,55 +141,10 @@ async function paradbDownload(
     pos += c.length
   }
 
-  // Step 2: Extract with JSZip
-  const zip = await JSZip.loadAsync(merged)
-  const entries = Object.values(zip.files)
-
-  // Find the top-level folder name
-  let folderName = ''
-  for (const entry of entries) {
-    if (entry.dir) {
-      const parts = entry.name.split('/')
-      if (parts.length === 2 && parts[1] === '') {
-        folderName = parts[0]!
-        break
-      }
-    }
-  }
-  if (!folderName) {
-    const firstFile = entries.find((e) => !e.dir)
-    if (firstFile) {
-      const parts = firstFile.name.split('/')
-      folderName = parts.length > 1 ? parts[0]! : 'Unknown'
-    }
-  }
-
-  // Step 3: Extract each file
-  const files: { name: string; data: ArrayBuffer; type: string }[] = []
-  for (const entry of entries) {
-    if (entry.dir) continue
-    if (entry.name.startsWith('.') || entry.name.includes('__MACOSX')) continue
-
-    const parts = entry.name.split('/')
-    const fileName = parts.length > 1 ? parts.slice(1).join('/') : entry.name
-    if (fileName.startsWith('.')) continue
-
-    const buffer = await entry.async('arraybuffer')
-    const lower = fileName.toLowerCase()
-    let type = 'application/octet-stream'
-    if (lower.endsWith('.rlrr')) type = 'application/json'
-    else if (lower.endsWith('.ogg')) type = 'audio/ogg'
-    else if (lower.endsWith('.mp3')) type = 'audio/mpeg'
-    else if (lower.endsWith('.wav')) type = 'audio/wav'
-    else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) type = 'image/jpeg'
-    else if (lower.endsWith('.png')) type = 'image/png'
-    else if (lower.endsWith('.webp')) type = 'image/webp'
-
-    files.push({ name: fileName, data: buffer, type })
-  }
-
+  // Step 2: Extract via the shared helper (also used by the user zip-picker)
+  const extracted = await extractSongZip(merged)
   onProgress(1)
-  return { folderName: folderName || 'Unknown', files }
+  return extracted
 }
 
 /**
