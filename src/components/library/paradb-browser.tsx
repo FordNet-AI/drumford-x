@@ -37,7 +37,11 @@ type SearchField = typeof SEARCH_FIELDS[number]['value']
 
 export function ParaDBBrowser() {
   const [catalog, setCatalog] = useState<CachedCatalog | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  // Default to true — we ARE loading from the moment the tab mounts (the
+  // IDB cache check is async). Without this default, there's a one-frame
+  // flash of "Catalog unavailable" before the useEffect kicks in. False
+  // becomes the steady state once we either have a catalog or hit an error.
+  const [isLoading, setIsLoading] = useState(true)
   const [loadProgress, setLoadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
@@ -104,22 +108,34 @@ export function ParaDBBrowser() {
 
   // Load cached catalog on mount; fetch fresh if missing.
   // Stale catalog stays usable — user can hit the Refresh button when ready.
+  // isLoading starts true (see useState) so the first render shows "Loading…"
+  // instead of "Catalog unavailable" while this effect resolves.
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const cached = await loadCatalog()
-      if (cancelled) return
-      if (cached) {
-        setCatalog(cached)
-        if (isStale(cached)) {
-          // Surface the staleness via the "updated X ago" label in the toolbar
-          // rather than auto-refreshing — auto-refresh would silently consume
-          // bandwidth every 24h. User triggers it explicitly.
-          console.log('[paradb] cached catalog is stale; user can refresh manually')
+      try {
+        const cached = await loadCatalog()
+        if (cancelled) return
+        if (cached) {
+          setCatalog(cached)
+          setIsLoading(false)
+          if (isStale(cached)) {
+            // Surface the staleness via the "updated X ago" label in the toolbar
+            // rather than auto-refreshing — auto-refresh would silently consume
+            // bandwidth every 24h. User triggers it explicitly.
+            console.log('[paradb] cached catalog is stale; user can refresh manually')
+          }
+        } else {
+          // No cache — first time using the ParaDB tab. Fetch automatically.
+          // fetchCatalog manages isLoading internally (true on entry, false in finally).
+          await fetchCatalog()
         }
-      } else {
-        // No cache — first time using the ParaDB tab. Fetch automatically.
-        await fetchCatalog()
+      } catch (err) {
+        if (!cancelled) {
+          console.error('[paradb] cache load failed:', err)
+          setError(err instanceof Error ? err.message : 'Failed to load catalog')
+          setIsLoading(false)
+        }
       }
     })()
     return () => { cancelled = true }
@@ -244,10 +260,20 @@ export function ParaDBBrowser() {
   }
 
   // No catalog and not loading — error or first-time refusal
+  // No catalog AND not loading = a genuine failure. Show whatever error we
+  // captured (network failure, IDB error, etc.) or a friendlier fallback,
+  // plus a retry button. The "Catalog unavailable" string is intentionally
+  // gone — it implied permanent failure, which is misleading since we can
+  // always retry the fetch.
   if (!catalog) {
     return (
       <div className="text-center py-12">
-        <p className="text-[#555] text-sm">{error ?? 'Catalog unavailable'}</p>
+        <p className="text-[#aaa] text-sm">
+          {error ?? "Couldn't reach ParaDB"}
+        </p>
+        <p className="text-[#555] text-xs mt-1">
+          Check your internet connection, then try again.
+        </p>
         <button
           onClick={fetchCatalog}
           className="mt-4 px-4 py-2 text-xs border border-[#1a1a2e] rounded hover:border-[#00e5ff] hover:text-[#00e5ff] transition-colors text-[#888]"
