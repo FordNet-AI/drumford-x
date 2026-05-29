@@ -11,8 +11,16 @@ android {
         // can pass an incrementing code (-PvCode=<run#>) without editing this
         // file each release. Defaults preserve the original sideload values
         // for any build that doesn't pass them.
-        versionCode (project.findProperty('vCode') ?: 1).toString().toInteger()
-        versionName project.findProperty('vName') ?: "0.1.0"
+        //
+        // Resolve into locals FIRST, then call the DSL setters with a bare
+        // identifier. Writing `versionCode (expr).toString()...` would be
+        // parsed by Groovy as `versionCode(expr).toString()...` — chaining on
+        // the setter's return value instead of converting the input — which
+        // fails with "Value is null". The local-var form avoids that trap.
+        def resolvedVersionCode = (project.findProperty('vCode') ?: '1').toString().toInteger()
+        def resolvedVersionName = (project.findProperty('vName') ?: '0.1.0').toString()
+        versionCode resolvedVersionCode
+        versionName resolvedVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
