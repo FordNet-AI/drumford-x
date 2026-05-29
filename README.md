@@ -1,8 +1,8 @@
 # DrumFord X
 
-> Flatscreen Paradiddle. Read drum charts on your desktop or tablet without strapping a headset on.
+> Drum charts for real kits. Read charts on your desktop or tablet, right next to your kit.
 
-DrumFord X is a chart visualizer for [Paradiddle](https://paradiddleapp.com), the VR drumming game. It plays the same `.rlrr` chart format and pulls songs from [paradb.net](https://paradb.net), but renders the notes scrolling down a flat canvas highway you can read on a regular monitor or tablet — no headset, no controllers, no rumbling kick pedals through your floor.
+DrumFord X is a flat-screen drum chart visualizer. It reads the open `.rlrr` chart format and pulls community-uploaded charts from [paradb.net](https://paradb.net), rendering the notes scrolling down a canvas highway you can read on a regular monitor or tablet — no headset, no controllers, just the chart and your kit.
 
 Built by **[Fordnet](#about-fordnet)**.
 
@@ -14,18 +14,18 @@ Built by **[Fordnet](#about-fordnet)**.
 
 ## What it is
 
-- 🎯 **A read-only chart player.** Notes scroll down lanes synced to the original song audio. No scoring, no input detection, no drumming required — it's a visualization tool.
-- 🥁 **Compatible with every Paradiddle chart.** Same `.rlrr` JSON format. Parses every chart on ParaDB.
-- 🌐 **Integrated ParaDB browser.** Search ~6,000 community charts, one-tap download, auto-import.
+- 🎯 **A read-only chart player.** Notes scroll down lanes synced to the original song audio. No scoring, no input detection, no drumming required — it's a visualization tool to read along on a real kit.
+- 🥁 **Reads the open `.rlrr` chart format.** Parses every community chart, including multi-difficulty songs.
+- 🌐 **Integrated Community Charts browser.** Search ~6,000 community charts from paradb.net, one-tap download, auto-import.
 - ⚙️ **Customizable.** Reorder lanes, recolor notes, tune note thickness / glow / grid brightness / hit-line pulse / highway speed. Add or remove lanes (CHINA, SPLASH, HH-FOOT). Per-instrument routing for unusual charts.
 - 🎚️ **Sync tooling.** Per-song speed (0.5×–1.5×), user-configurable sync offset (±2000 ms), metronome with BPM-event awareness, audio-output-latency-compensated timing.
 - 💻 **Two platforms today.** Windows .exe (Electron) and Android APK (Capacitor wrapper). Same renderer code, same feature set.
 
 ## What it isn't
 
-- ❌ **Not a Paradiddle replacement.** It doesn't track drumming, isn't a game, doesn't replace the VR experience. Use it alongside Paradiddle (or instead of, on days you can't be in VR).
-- ❌ **Not affiliated with Paradiddle.** Independent fan project. The Paradiddle team is not responsible for this and didn't make it.
-- ❌ **Not a chart authoring tool.** It plays charts you've already authored or downloaded. For authoring, use [the official Paradiddle utilities](https://github.com/Paradiddle-Stuff/ParadiddleUtilities).
+- ❌ **Not a game.** It doesn't track drumming, doesn't score you, doesn't detect input. It's a chart you read while you play your own kit.
+- ❌ **Not a chart authoring tool.** It plays charts you've already authored or downloaded — it doesn't make new ones.
+- ❌ **Independent project.** DrumFord X plays the open `.rlrr` drum-chart format and is not affiliated with, endorsed by, or connected to the makers of that format.
 - ❌ **Not in any app store.** Downloads are direct from the GitHub releases page below.
 
 ---
@@ -35,11 +35,11 @@ Built by **[Fordnet](#about-fordnet)**.
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/02-library.jpg" alt="Song library with cover art and difficulty buttons"/></td>
-    <td width="50%"><img src="docs/screenshots/03-paradb.jpg" alt="ParaDB browser with 6,000+ songs, instant search, sort by popularity"/></td>
+    <td width="50%"><img src="docs/screenshots/03-paradb.jpg" alt="Community Charts browser with 6,000+ songs, instant search, sort by popularity"/></td>
   </tr>
   <tr>
     <td width="50%" align="center"><em>Your library — sortable, filterable, cover-art aware</em></td>
-    <td width="50%" align="center"><em>Browse ParaDB — ~6,000 community charts, instant client-side search</em></td>
+    <td width="50%" align="center"><em>Community Charts — ~6,000 community charts, instant client-side search</em></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/04-kit-setup.jpg" alt="Kit Setup screen — lane reorder, color swatches, kit tuning sliders"/></td>
@@ -78,7 +78,7 @@ The APK is debug-signed, which is fine for sideloading but means it won't ever b
 
 After first launch, you'll land on an empty library. Two ways to get songs in:
 
-- **Browse ParaDB tab** — the easiest path. Loads a local cache of every public chart, one-tap downloads straight into your library.
+- **Community Charts tab** — the easiest path. Loads a local cache of every public chart from paradb.net, one-tap downloads straight into your library.
 - **Import a song zip** (Android) or **drag a folder onto the app** (Windows) — for charts you already have.
 
 ---
@@ -90,7 +90,7 @@ After first launch, you'll land on an empty library. Two ways to get songs in:
 | 🎼 **Chart playback** | Scroll-down highway, kick as full-width bar, customizable color per lane, accent / ghost note styling, hollow cymbals |
 | 🥁 **Hit-line pulse** | Visual feedback when triggering notes cross the hit line (configurable per-lane) |
 | 📚 **Library** | Sort by Date Added / Title / Artist / Complexity / Duration. Filter by difficulty. |
-| 🌐 **ParaDB browser** | Local catalog of all ~6,000 community charts. Instant client-side search. Sort by Most Popular / Trending (7d / 30d) / Newest / Complexity / A→Z. Compact list view + grid view. |
+| 🌐 **Community Charts browser** | Local catalog of all ~6,000 community charts from paradb.net. Instant client-side search. Sort by Most Popular / Trending (7d / 30d) / Newest / Complexity / A→Z. Compact list view + grid view. |
 | 🎛️ **Kit Setup** | Per-lane reorder, color, kind (drum / cymbal / full-width), enable/disable, pulse-trigger, custom-name. Optional presets: CHINA, SPLASH, HH-FOOT. Advanced instrument-class remapping. |
 | 🎚️ **Live tuning** | Highway speed, note thickness, glow intensity, grid brightness, hit-line pulse strength. All sliders, all persistent. |
 | ⏱️ **Sync controls** | Per-song speed multiplier (0.5×–1.5×), per-user sync offset (±2000 ms, click-to-type), metronome with full BPM-event awareness |
@@ -101,9 +101,9 @@ After first launch, you'll land on an empty library. Two ways to get songs in:
 ## Known limitations
 
 - **Audio latency on tablet:** Android's audio pipeline has higher latency than desktop. Use the **Offset** control to compensate (typically +50–100 ms on a tablet).
-- **No drag-and-drop on Android:** Replaced with a "Import Zip file" picker. ParaDB is the primary import path.
+- **No drag-and-drop on Android:** Replaced with a "Import Zip file" picker. Community Charts is the primary import path.
 - **No code signing:** Windows SmartScreen + Android "Install Unknown Apps" warnings. Both are click-through but cosmetically rough.
-- **No chart authoring:** This is a player, not an editor. Use Paradiddle's tools to make new charts.
+- **No chart authoring:** This is a player, not an editor. Author charts in a dedicated editor, then import them here.
 - **Open hi-hat detection:** Not yet differentiated visually from closed hi-hat. The chart authoring community typically uses velocity to encode this; DrumFord X renders accent-velocity notes larger + with a glow, so well-charted songs already get visual distinction "for free."
 - **Tempo changes:** Fully supported on the highway grid; tempo changes within a song re-anchor the beat grid correctly.
 
@@ -114,7 +114,7 @@ Open an issue: https://github.com/FordNet-AI/drumford-x/issues
 Useful info to include:
 - Platform (Windows or Android)
 - App version (visible on the About tab)
-- Song you were playing (link to ParaDB)
+- Song you were playing (link to the chart on paradb.net)
 - What happened vs what you expected
 - Browser console / adb logcat output if you can grab it
 
@@ -178,20 +178,20 @@ Electron + Capacitor · React 19 · Vite 7 · TypeScript · Tailwind v4 · Zusta
 ## Project layout
 
 ```
-electron/         Electron main process (Windows shell, IPC, ParaDB API, zip extraction)
+electron/         Electron main process (Windows shell, IPC, chart API, zip extraction)
 src/
   components/   React UI
     highway/    Canvas renderer + lane logic
-    library/    Song cards, ParaDB browser, import
+    library/    Song cards, Community Charts browser, import
     setup/      Kit Setup, Quick Tuner popover, Add-Lane modal
     controls/   Transport bar widgets
   stores/       Zustand stores (player, library, kit, ui)
   lib/          Pure modules (parser, default kit, song storage, catalog cache, capacitor bridge)
   types/        Shared types
 android/        Capacitor Android shell (only on android-capacitor branch)
-public/         Static assets (icon, Fordnet logo, demo song)
+public/         Static assets (icon, Fordnet logo)
 scripts/        Build helpers
-docs/           rlrrschema.json — official Paradiddle chart spec for reference
+docs/           rlrrschema.json — the .rlrr chart format spec, for reference
 .github/        CI workflow (auto-builds Android APK)
 ```
 
@@ -199,12 +199,11 @@ docs/           rlrrschema.json — official Paradiddle chart spec for reference
 
 ## About Fordnet
 
-Fordnet is the indie label behind DrumFord X. Built by Tim — drummer, builder, and recovering Quicken user — out of a desire to read Paradiddle charts without strapping a headset on every time.
+Fordnet is the indie label behind DrumFord X. Built by Tim — drummer, builder, and recovering Quicken user — out of a desire to read drum charts on a flat screen next to a real kit, instead of strapping on a headset every time.
 
 ## Credits
 
-- **Paradiddle** — the VR drumming game and `.rlrr` chart format we play. Without it, this doesn't exist.
-- **ParaDB.net** — the community-run chart database that DrumFord X integrates with.
+- **paradb.net** — the community-run chart database DrumFord X integrates with for one-click downloads.
 - **Every chart author** — every drummer who has ever taken the time to chart a song. This whole experience runs on your work.
 
 ## License
@@ -215,4 +214,4 @@ MIT. See [LICENSE](LICENSE).
 
 ## Notice
 
-See [NOTICE.md](NOTICE.md) for the formal Paradiddle attribution and a summary of what this project does and doesn't redistribute.
+DrumFord X is an independent project that plays the open `.rlrr` drum-chart format and is not affiliated with, endorsed by, or connected to the makers of that format. See [NOTICE.md](NOTICE.md) for the full statement of what this project does and doesn't redistribute.
