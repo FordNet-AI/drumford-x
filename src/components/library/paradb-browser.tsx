@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Search, Loader2, X } from 'lucide-react'
 import { ParaDBCard } from './paradb-card'
 import { ParaDBRow } from './paradb-row'
@@ -44,6 +44,13 @@ export function ParaDBBrowser() {
   const [isLoading, setIsLoading] = useState(true)
   const [loadProgress, setLoadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
+
+  // In-flight guard so a double-tapped "Try Again" (or a refresh fired while
+  // one is already running) can't kick off two concurrent full-catalog
+  // fetches — that would be ~12 rapid requests, exactly the burst ParaDB's
+  // operator asked us to avoid. A ref (not state) because we need a
+  // synchronous check that doesn't wait for a re-render.
+  const fetchingRef = useRef(false)
 
   const [query, setQuery] = useState('')
   // Default to 'title' — typing a song name is the overwhelmingly common
@@ -94,6 +101,9 @@ export function ParaDBBrowser() {
       setError('ParaDB requires the Electron app — this feature is unavailable in browser mode.')
       return
     }
+    // Bail if a fetch is already running (double-tap / re-entrancy guard).
+    if (fetchingRef.current) return
+    fetchingRef.current = true
     setIsLoading(true)
     setError(null)
     setLoadProgress(0)
@@ -113,6 +123,7 @@ export function ParaDBBrowser() {
     } finally {
       cleanup?.()
       setIsLoading(false)
+      fetchingRef.current = false
     }
   }, [])
 

@@ -2,6 +2,70 @@ import AdmZip from 'adm-zip'
 
 const PARADB_BASE = 'https://paradb.net'
 
+/** Pause helper for backoff + polite request pacing. */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Exponential backoff with full jitter, capped at 8s.
+ * attempt 0 → ~0.25–0.5s, 1 → ~0.5–1s, 2 → ~1–2s, 3 → ~2–4s, 4 → ~4–8s.
+ * Jitter (randomizing within the window) spreads retries from many clients
+ * so they don't all hammer the server in lockstep after a rate-limit spike.
+ */
+function backoffDelay(attempt: number): number {
+  const ceil = Math.min(500 * 2 ** attempt, 8000)
+  return Math.floor(ceil / 2 + Math.random() * (ceil / 2))
+}
+
+/** Parse a Retry-After header in seconds form → milliseconds (capped 30s). */
+function parseRetryAfter(value: string | null): number | null {
+  if (!value) return null
+  const secs = parseInt(value, 10)
+  if (!Number.isNaN(secs) && secs >= 0) return Math.min(secs * 1000, 30_000)
+  return null
+}
+
+/**
+ * fetch() wrapper that retries transient failures. ParaDB's operator OK'd
+ * third-party API use but asked us to be resilient to their rate limits, so:
+ *   - 429 (rate limited) and 5xx → retry, honoring a Retry-After header when
+ *     present, otherwise exponential backoff with jitter.
+ *   - Network errors (offline, DNS, reset) → retry with backoff.
+ *   - 4xx other than 429 → returned immediately (client errors won't self-heal).
+ * Returns the final Response (which the caller still checks .ok on); throws
+ * only if every attempt hit a network-level error.
+ */
+async function fetchWithRetry(
+  url: string,
+  init?: RequestInit,
+  opts: { retries?: number; label?: string } = {},
+): Promise<Response> {
+  const retries = opts.retries ?? 4
+  const label = opts.label ?? 'request'
+  let lastErr: unknown
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const resp = await fetch(url, init)
+      if ((resp.status === 429 || resp.status >= 500) && attempt < retries) {
+        const delay = parseRetryAfter(resp.headers.get('retry-after')) ?? backoffDelay(attempt)
+        console.warn(`[paradb] ${label}: HTTP ${resp.status}, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`)
+        await sleep(delay)
+        continue
+      }
+      return resp
+    } catch (err) {
+      lastErr = err
+      if (attempt >= retries) break
+      const delay = backoffDelay(attempt)
+      console.warn(`[paradb] ${label}: network error, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`, err)
+      await sleep(delay)
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(`[paradb] ${label} failed after ${retries} retries`)
+}
+
 /**
  * Recognise a paredit autosave file path so we can drop those entries
  * before they cross the IPC boundary into the renderer. paredit writes
@@ -75,7 +139,7 @@ export async function searchParaDB(query: string) {
     url.searchParams.set('search', query.trim())
   }
 
-  const resp = await fetch(url.toString())
+  const resp = await fetchWithRetry(url.toString(), undefined, { label: 'search' })
 
   if (!resp.ok) {
     throw new Error(`ParaDB search failed: ${resp.status} ${resp.statusText}`)
@@ -106,6 +170,10 @@ export async function fetchAllMaps(
   onProgress?: (loaded: number) => void,
 ): Promise<ReturnType<typeof normalizeMap>[]> {
   const CHUNK_SIZE = 1000
+  // Polite pacing between pages so the ~6 sequential catalog requests don't
+  // arrive as a tight burst. ParaDB's operator asked us to respect their
+  // rate limits; this + the renderer's 24h cache keeps our footprint light.
+  const PAGE_DELAY_MS = 300
   const all: ParaDBMap[] = []
   let offset = 0
   // Sanity cap so a buggy API or malformed response can't loop forever.
@@ -117,7 +185,7 @@ export async function fetchAllMaps(
     url.searchParams.set('limit', String(CHUNK_SIZE))
     url.searchParams.set('offset', String(offset))
 
-    const resp = await fetch(url.toString())
+    const resp = await fetchWithRetry(url.toString(), undefined, { label: `catalog@${offset}` })
     if (!resp.ok) {
       throw new Error(`Catalog fetch failed at offset ${offset}: ${resp.status} ${resp.statusText}`)
     }
@@ -133,6 +201,7 @@ export async function fetchAllMaps(
 
     if (page.length < CHUNK_SIZE) break // last page reached
     offset += page.length
+    await sleep(PAGE_DELAY_MS) // pace requests between pages
   }
 
   return all.map(normalizeMap)
@@ -147,9 +216,11 @@ export async function downloadAndExtract(
   mapId: string,
   onProgress?: (progress: number) => void,
 ) {
-  // Step 1: Fetch the zip (follows 307 redirect automatically)
+  // Step 1: Fetch the zip (follows 307 redirect automatically), retrying
+  // through rate limits / transient errors. A download is a single idempotent
+  // GET so re-fetching on failure is safe.
   const url = `${PARADB_BASE}/api/maps/${mapId}/download`
-  const resp = await fetch(url, { redirect: 'follow' })
+  const resp = await fetchWithRetry(url, { redirect: 'follow' }, { label: `download ${mapId}` })
 
   if (!resp.ok) {
     throw new Error(`ParaDB download failed: ${resp.status} ${resp.statusText}`)
