@@ -1,0 +1,119 @@
+# GitHub Actions workflow for building the DrumFord X Google Play release bundle.
+#
+# Produces a SIGNED Android App Bundle (.aab) — the format Google Play requires
+# (the sideload APK lives in the separate android.yml workflow on the
+# android-capacitor branch and is untouched by this one).
+#
+# Signing: uses the Play "upload key" stored as GitHub Actions secrets. Under
+# Google Play App Signing, Google holds the real app-signing key; we sign the
+# upload with this key and Google re-signs. The upload key is resettable if
+# ever lost.
+#
+# Required repo secrets (set via `gh secret set`):
+#   ANDROID_UPLOAD_KEYSTORE_BASE64  — base64 of upload-keystore.jks
+#   ANDROID_KEYSTORE_PASSWORD       — keystore password
+#   ANDROID_KEY_ALIAS               — key alias (drumfordx-upload)
+#   ANDROID_KEY_PASSWORD            — key password
+#
+# After a successful run the bundle is at:
+#   Actions tab → run → Artifacts → drumford-x-play-aab  (contains app-release.aab)
+# Download it and upload to the Play Console (Internal testing track first).
+
+name: Build Android AAB (Play)
+
+on:
+  push:
+    branches: [android-play]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'electron/**'
+      - 'docs/**'
+      - 'public/icon-preview.png'
+  workflow_dispatch: # manual trigger from the Actions tab
+
+jobs:
+  build:
+    name: Build signed AAB
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build renderer (Vite)
+        run: npm run build:renderer
+
+      # Copies dist/ into android/app/src/main/assets/public/ and regenerates
+      # capacitor.config.json + plugin registration. Same as the APK workflow.
+      - name: Sync Capacitor → Android
+        run: npx cap sync android
+
+      # Decode the upload keystore from the base64 secret into the app module.
+      # The file is gitignored (android/.gitignore → app/upload-keystore.jks)
+      # so it only ever exists on the runner, never in the repo.
+      - name: Decode upload keystore
+        run: |
+          if [ -z "${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}" ]; then
+            echo "::error::ANDROID_UPLOAD_KEYSTORE_BASE64 secret is not set. Run the keystore setup first."
+            exit 1
+          fi
+          echo "${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+          echo "Wrote $(stat -c%s android/app/upload-keystore.jks) bytes to android/app/upload-keystore.jks"
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      # versionCode = this workflow's run number (monotonic increasing → each
+      # upload to Play is higher than the last). versionName = the alpha
+      # marketing version. The signing env vars feed signingConfigs.release
+      # in android/app/build.gradle.
+      - name: Build signed AAB (bundleRelease)
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/app/upload-keystore.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease -PvCode=${{ github.run_number }} -PvName=0.1.0 --no-daemon
+
+      - name: Locate AAB
+        run: |
+          echo "::group::AAB output"
+          ls -lh android/app/build/outputs/bundle/release/
+          echo "::endgroup::"
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drumford-x-play-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+          if-no-files-found: error
+
+      # Clean the decoded keystore off the runner (defense-in-depth; the
+      # runner is ephemeral anyway). `always()` so it runs even if the build
+      # failed.
+      - name: Shred upload keystore
+        if: always()
+        run: rm -f android/app/upload-keystore.jks

@@ -7,8 +7,12 @@ android {
         applicationId "com.fordnet.drumfordx"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // versionCode / versionName are property-driven so the Play release CI
+        // can pass an incrementing code (-PvCode=<run#>) without editing this
+        // file each release. Defaults preserve the original sideload values
+        // for any build that doesn't pass them.
+        versionCode (project.findProperty('vCode') ?: 1).toString().toInteger()
+        versionName project.findProperty('vName') ?: "0.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -34,12 +38,36 @@ android {
             keyPassword "android"
             storeType "JKS"
         }
+        // Release (Play Store) signing — the UPLOAD key for Google Play App
+        // Signing. Reads everything from environment variables (set by the
+        // android-release.yml CI from GitHub secrets) so no key material or
+        // password is ever hardcoded or committed. The keystore file itself
+        // (upload-keystore.jks) is gitignored. If the env vars are absent
+        // (e.g. a plain debug build elsewhere) this block stays inert and the
+        // release config simply has no store — only the Play CI ever uses it.
+        release {
+            def ksFile = System.getenv("ANDROID_KEYSTORE_PATH")
+            if (ksFile) {
+                storeFile file(ksFile)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                storeType "JKS"
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
+            // Only attach the release signing config when the upload keystore
+            // is actually present (CI sets ANDROID_KEYSTORE_PATH). This keeps
+            // `gradlew assembleDebug` and unsigned local builds working even
+            // without the secrets.
+            if (System.getenv("ANDROID_KEYSTORE_PATH")) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

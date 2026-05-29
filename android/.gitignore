@@ -56,6 +56,11 @@ captures/
 # Uncomment the following lines if you do not want to check your keystore files in.
 #*.jks
 #*.keystore
+# Release UPLOAD keystore — never commit. Ignored by exact name so the
+# intentionally-committed debug.keystore (stable sideload signature) is
+# unaffected. The real upload key lives only in GitHub Actions secrets +
+# Tim's secure backup.
+app/upload-keystore.jks
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild
