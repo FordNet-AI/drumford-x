@@ -99,54 +99,69 @@ export function TransportBar({ onSeek }: { onSeek: (time: number) => void }) {
   }, [updateBpmDisplay])
 
   return (
-    <div className="flex items-center gap-4 px-4 py-2 bg-[#0d1424] border-t border-[#1a1a2e]">
-      <button
-        onClick={handleRestart}
-        className="p-2 text-[#888] hover:text-[#00e5ff] transition-colors"
-      >
-        <SkipBack size={18} />
-      </button>
+    // flex-wrap so the controls cluster drops to a second line on narrow /
+    // portrait-tablet widths instead of overflowing off the right edge.
+    // In landscape (the common case) everything stays on one row, unchanged.
+    // gap-y-2 gives the wrapped rows vertical breathing room.
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 bg-[#0d1424] border-t border-[#1a1a2e]">
+      {/* Playback essentials — restart / play / time / seek / duration / BPM.
+          Grouped so they stay together on one line. `flex-1` makes this group
+          expand to fill the row, which both stretches the seek bar AND pushes
+          the controls cluster to the right edge on wide screens (preserving
+          the original look). `min-w` keeps the group from collapsing too far
+          before the cluster wraps below it. */}
+      <div className="flex items-center gap-4 flex-1 min-w-[280px]">
+        <button
+          onClick={handleRestart}
+          className="p-2 text-[#888] hover:text-[#00e5ff] transition-colors"
+        >
+          <SkipBack size={18} />
+        </button>
 
-      <button
-        onClick={handlePlayPause}
-        className="p-2 rounded-full border border-[#333] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-colors"
-      >
-        {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-      </button>
+        <button
+          onClick={handlePlayPause}
+          className="p-2 rounded-full border border-[#333] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-colors"
+        >
+          {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+        </button>
 
-      <span ref={timeRef} className="text-xs text-[#888] w-[44px] text-right tabular-nums">
-        {formatDuration(0)}
-      </span>
+        <span ref={timeRef} className="text-xs text-[#888] w-[44px] text-right tabular-nums">
+          {formatDuration(0)}
+        </span>
 
-      <input
-        ref={rangeRef}
-        type="range"
-        min={0}
-        max={duration}
-        step={0.1}
-        defaultValue={0}
-        onChange={handleSeek}
-        onMouseDown={handleScrubStart}
-        onMouseUp={handleScrubEnd}
-        onTouchStart={handleScrubStart}
-        onTouchEnd={handleScrubEnd}
-        className="flex-1 h-1"
-      />
+        <input
+          ref={rangeRef}
+          type="range"
+          min={0}
+          max={duration}
+          step={0.1}
+          defaultValue={0}
+          onChange={handleSeek}
+          onMouseDown={handleScrubStart}
+          onMouseUp={handleScrubEnd}
+          onTouchStart={handleScrubStart}
+          onTouchEnd={handleScrubEnd}
+          className="flex-1 h-1"
+        />
 
-      <span className="text-xs text-[#555] w-[44px] tabular-nums">
-        {formatDuration(duration)}
-      </span>
+        <span className="text-xs text-[#555] w-[44px] tabular-nums">
+          {formatDuration(duration)}
+        </span>
 
-      {/* BPM & time signature display */}
-      <span
-        ref={bpmRef}
-        className="text-xs text-[#ffcc00] tabular-nums whitespace-nowrap"
-        title="Current BPM and time signature"
-      >
-        120 BPM · 4/4
-      </span>
+        {/* BPM & time signature display */}
+        <span
+          ref={bpmRef}
+          className="text-xs text-[#ffcc00] tabular-nums whitespace-nowrap"
+          title="Current BPM and time signature"
+        >
+          120 BPM · 4/4
+        </span>
+      </div>
 
-      <div className="flex items-center gap-3 ml-2 border-l border-[#1a1a2e] pl-3">
+      {/* Controls cluster — wraps to its own line on narrow/portrait screens
+          rather than getting clipped off the right edge. Its own flex-wrap
+          lets it degrade further on very narrow (phone) widths. */}
+      <div className="flex flex-wrap items-center gap-3">
         <VolumeSliders />
         <MetronomeControl />
         <SpeedControl />
