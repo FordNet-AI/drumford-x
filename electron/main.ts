@@ -44,8 +44,6 @@ function createWindow() {
   const ALLOWED_EXTERNAL_HOSTS = new Set([
     'paradb.net',
     'www.paradb.net',
-    'paradiddleapp.com',
-    'www.paradiddleapp.com',
     'github.com',
     'www.github.com',
   ])

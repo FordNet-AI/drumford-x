@@ -69,7 +69,7 @@ export function ManualContent() {
         <Bullet><strong className="text-[#ddd]">Optional presets:</strong> CHINA, SPLASH, HH FT (hi-hat foot pedal) — adding any preset automatically routes the matching instruments to it.</Bullet>
         <Bullet><strong className="text-[#ddd]">Custom Lane:</strong> create a new lane with name, color, shape, pulse, AND mappings all in one modal.</Bullet>
         <Bullet><strong className="text-[#ddd]">Tuning sliders:</strong> thickness, glow, grid brightness, pulse strength, highway speed.</Bullet>
-        <Bullet><strong className="text-[#ddd]">Advanced:</strong> remap any individual Paradiddle instrument class to a different lane.</Bullet>
+        <Bullet><strong className="text-[#ddd]">Advanced:</strong> remap any individual <code className="font-mono text-[#00e5ff]">.rlrr</code> instrument class to a different lane.</Bullet>
         <Bullet><strong className="text-[#ddd]">Reset:</strong> wipe all kit changes back to factory defaults.</Bullet>
       </Section>
 

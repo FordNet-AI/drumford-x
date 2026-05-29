@@ -1,6 +1,6 @@
 # DrumFord X
 
-Flatscreen Paradiddle — a one-way drum visualization/playback tool wrapped in Electron. Notes scroll down a canvas highway synced to audio. No scoring, no input detection.
+Flat-screen drum chart visualizer for real kits — a one-way drum chart reader wrapped in Electron. Reads the open `.rlrr` chart format; notes scroll down a canvas highway synced to audio. No scoring, no input detection. Independent project, not affiliated with the makers of the .rlrr format.
 
 ## Stack
 Electron + React 19 + Vite 7 + TypeScript + Tailwind v4 + Zustand 5

@@ -14,22 +14,22 @@ export function AboutContent() {
           <span className="text-[#ff3a5c]">FORD</span>
           <span className="text-[#888] ml-2 text-xl">X</span>
         </h1>
-        <p className="text-xs text-[#555]">Paradiddle for flat screens — v0.1.0 alpha</p>
+        <p className="text-xs text-[#555]">Drum charts for real kits — v0.1.0 alpha</p>
       </header>
 
       <Section title="What this is">
         <p>
-          DrumFord X is a desktop visualizer for Paradiddle drum charts. Notes scroll down a highway in
-          sync with the original song's audio, calibrated to land at the exact moment they should be played.
-          There's no scoring, no input detection, no judgment — just a clean way to read drum charts on a
-          flat screen instead of in VR.
+          DrumFord X is a flat-screen drum chart visualizer. It reads <code className="font-mono text-[#888]">.rlrr</code> chart
+          files and renders the notes scrolling down a highway in sync with the song's audio, calibrated to land at the
+          exact moment they should be played. There's no scoring, no input detection, no judgment — just a clean way to
+          read drum charts on a monitor or tablet next to a real kit.
         </p>
       </Section>
 
       <Section title="About Fordnet">
         <p>
           Fordnet is the indie label behind DrumFord X. Built by Tim — drummer, builder, and recovering Quicken user — out
-          of a desire to read Paradiddle charts without strapping a headset on every time.
+          of a desire to read drum charts on a flat screen next to a real kit, instead of strapping on a headset every time.
         </p>
         <p className="text-xs text-[#666]">
           (Edit this section in <code className="font-mono text-[#888]">src/components/library/about-content.tsx</code> — say whatever you want about yourself here.)
@@ -37,17 +37,16 @@ export function AboutContent() {
       </Section>
 
       <Section title="Credits & Acknowledgements">
-        <Credit name="Paradiddle" desc="The VR drumming game that established the .rlrr chart format and ecosystem. Without it, none of this exists." />
-        <Credit name="ParaDB" desc="paradb.net — the community-run chart database that DrumFord X integrates with for one-click downloads." />
+        <Credit name="paradb.net" desc="The community-run chart database DrumFord X integrates with for one-click downloads." />
         <Credit name="Chart authors" desc="Every drummer who has ever taken the time to chart a song. This whole experience runs on your work." />
       </Section>
 
       <Section title="Disclaimers">
-        <Disclaimer text="Not affiliated with Paradiddle. DrumFord X is an independent fan project — not endorsed by, sponsored by, or connected to Studio Cor or the Paradiddle game." />
+        <Disclaimer text="Independent project. DrumFord X plays the open .rlrr drum-chart format and is not affiliated with, endorsed by, or connected to the makers of Paradiddle." />
         <Disclaimer text="No audio is hosted or distributed. DrumFord X is a visualizer; you supply your own audio and are responsible for your rights to it." />
         <Disclaimer text="Community content. Charts come from community uploaders via paradb.net — DrumFord X doesn't create, curate, or vet them, and isn't responsible for their content or the songs they reference." />
         <Disclaimer text="No warranty. Provided as-is under the MIT license, with no guarantee of fitness for any purpose." />
-        <Disclaimer text="Trademarks. DrumFord X and Fordnet are trademarks of Fordnet. Paradiddle is a trademark of its respective owners." />
+        <Disclaimer text="Trademarks. DrumFord X and Fordnet are trademarks of Fordnet. Other names and formats are the property of their respective owners." />
         <p className="text-xs text-[#666] pt-1">
           Spot a problem or a chart that shouldn't be here? Report it at{' '}
           <span className="font-mono text-[#888]">github.com/FordNet-AI/drumford-x/issues</span>.

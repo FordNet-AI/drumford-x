@@ -458,7 +458,7 @@ function InstrumentMapping({ songCount }: { songCount: number }) {
   return (
     <div className="mt-3 bg-[#0d1424] border border-[#1a1a2e] rounded p-4">
       <p className="text-xs text-[#555] mb-3">
-        Override which lane a specific Paradiddle drum maps to. Empty = use default mapping.
+        Override which lane a specific drum maps to. Empty = use default mapping.
         {songCount === 0 && ' Import some songs to see what instruments your library uses.'}
       </p>
 

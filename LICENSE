@@ -24,10 +24,10 @@ SOFTWARE.
 
 Note about charts and audio:
 DrumFord X is a chart visualizer. It does NOT host, distribute, or include any
-Paradiddle song files, charts, or copyrighted audio. Users download their own
-charts from third-party sources (e.g. paradb.net) at their own discretion and
+song files, charts, or copyrighted audio. Users download their own charts from
+third-party community sources (e.g. paradb.net) at their own discretion and
 responsibility. The MIT license covers the DrumFord X source code only.
 
-Paradiddle is a separate VR drumming game by its own developers — see
-paradiddleapp.com. DrumFord X is an independent fan project, not affiliated
-with, endorsed by, or sponsored by Paradiddle.
+DrumFord X is an independent project that reads the open .rlrr drum-chart
+format. It is not affiliated with, endorsed by, or connected to the makers of
+that format.

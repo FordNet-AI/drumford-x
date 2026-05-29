@@ -224,7 +224,7 @@ export function AddLaneModal({ defaultId, defaultLabel, defaultShortLabel, onClo
               <span className="text-[10px] text-[#444]">{selectedClasses.size} selected</span>
             </div>
             <p className="text-[10px] text-[#555] mb-2">
-              Pick which Paradiddle instruments feed this lane. Unchecked classes keep their existing mapping. You can change this later in Advanced settings.
+              Pick which drum instruments feed this lane. Unchecked classes keep their existing mapping. You can change this later in Advanced settings.
             </p>
 
             <div className="bg-[#050508] border border-[#1a1a2e] rounded p-3 space-y-3">
