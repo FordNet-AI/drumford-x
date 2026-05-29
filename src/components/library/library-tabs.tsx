@@ -45,7 +45,7 @@ export function LibraryTabs({ activeTab, onTabChange }: LibraryTabsProps) {
       />
       {isElectron && (
         <TabButton
-          label="Browse ParaDB"
+          label="Community Charts"
           active={activeTab === 'paradb'}
           onClick={() => onTabChange('paradb')}
         />

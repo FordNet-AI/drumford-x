@@ -273,7 +273,7 @@ export function ParaDBBrowser() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Loader2 size={32} className="text-[#00e5ff] animate-spin mb-4" />
-        <p className="text-sm text-[#aaa]">Downloading ParaDB catalog…</p>
+        <p className="text-sm text-[#aaa]">Downloading community charts…</p>
         <p className="text-xs text-[#555] mt-1 tabular-nums">
           {loadProgress > 0 ? `${loadProgress.toLocaleString()} songs loaded` : 'connecting'}
         </p>
@@ -294,7 +294,7 @@ export function ParaDBBrowser() {
     return (
       <div className="text-center py-12">
         <p className="text-[#aaa] text-sm">
-          {error ?? "Couldn't reach ParaDB"}
+          {error ?? "Couldn't reach the chart catalog"}
         </p>
         <p className="text-[#555] text-xs mt-1">
           Check your internet connection, then try again.
@@ -334,7 +334,7 @@ export function ParaDBBrowser() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Filter ${totalCount.toLocaleString()} ParaDB songs…`}
+              placeholder={`Filter ${totalCount.toLocaleString()} community charts…`}
               className="w-full pl-10 pr-10 py-2.5 bg-[#0d1424] border border-[#1a1a2e] rounded-lg text-sm text-[#ddd] placeholder:text-[#444] focus:outline-none focus:border-[#00e5ff40] transition-colors"
             />
             {query && (
@@ -362,6 +362,16 @@ export function ParaDBBrowser() {
           onViewChange={handleViewChange}
         />
       </div>
+
+      {/* Provenance + disclaimer banner. Names the source (paradb.net) for
+          transparency, and sets expectations that these charts are community
+          content DrumFord X neither curates nor supplies audio for. Kept to a
+          single muted line so it doesn't crowd the results. */}
+      <p className="text-[11px] text-[#555] leading-relaxed -mt-1">
+        Community-uploaded charts from{' '}
+        <span className="text-[#777]">paradb.net</span>. Not created or curated
+        by DrumFord X — you supply your own audio.
+      </p>
 
       {/* Error banner (refresh failed, but cache may still be usable) */}
       {error && (

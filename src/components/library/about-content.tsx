@@ -14,7 +14,7 @@ export function AboutContent() {
           <span className="text-[#ff3a5c]">FORD</span>
           <span className="text-[#888] ml-2 text-xl">X</span>
         </h1>
-        <p className="text-xs text-[#555]">Paradiddle for flat screens — version 0.1.0</p>
+        <p className="text-xs text-[#555]">Paradiddle for flat screens — v0.1.0 alpha</p>
       </header>
 
       <Section title="What this is">
@@ -42,6 +42,18 @@ export function AboutContent() {
         <Credit name="Chart authors" desc="Every drummer who has ever taken the time to chart a song. This whole experience runs on your work." />
       </Section>
 
+      <Section title="Disclaimers">
+        <Disclaimer text="Not affiliated with Paradiddle. DrumFord X is an independent fan project — not endorsed by, sponsored by, or connected to Studio Cor or the Paradiddle game." />
+        <Disclaimer text="No audio is hosted or distributed. DrumFord X is a visualizer; you supply your own audio and are responsible for your rights to it." />
+        <Disclaimer text="Community content. Charts come from community uploaders via paradb.net — DrumFord X doesn't create, curate, or vet them, and isn't responsible for their content or the songs they reference." />
+        <Disclaimer text="No warranty. Provided as-is under the MIT license, with no guarantee of fitness for any purpose." />
+        <Disclaimer text="Trademarks. DrumFord X and Fordnet are trademarks of Fordnet. Paradiddle is a trademark of its respective owners." />
+        <p className="text-xs text-[#666] pt-1">
+          Spot a problem or a chart that shouldn't be here? Report it at{' '}
+          <span className="font-mono text-[#888]">github.com/FordNet-AI/drumford-x/issues</span>.
+        </p>
+      </Section>
+
       <Section title="Tech">
         <p className="text-xs">
           Electron · React 19 · Vite 7 · TypeScript · Tailwind v4 · Zustand 5 · Web Audio API.
@@ -65,6 +77,23 @@ function Credit({ name, desc }: { name: string; desc: string }) {
     <div className="flex items-start gap-3">
       <span className="text-[#00e5ff] font-mono text-xs min-w-[80px]">{name}</span>
       <span className="flex-1 text-xs text-[#888]">{desc}</span>
+    </div>
+  )
+}
+
+/** A single disclaimer line. The first sentence (up to the first period) is
+ *  emphasized as a mini-heading so the section scans quickly. */
+function Disclaimer({ text }: { text: string }) {
+  const periodIdx = text.indexOf('. ')
+  const lead = periodIdx > -1 ? text.slice(0, periodIdx + 1) : text
+  const rest = periodIdx > -1 ? text.slice(periodIdx + 2) : ''
+  return (
+    <div className="flex items-start gap-2 text-xs text-[#888]">
+      <span className="text-[#444] select-none">›</span>
+      <span className="flex-1">
+        <span className="text-[#aaa]">{lead}</span>
+        {rest && <span> {rest}</span>}
+      </span>
     </div>
   )
 }
