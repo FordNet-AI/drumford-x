@@ -73,12 +73,16 @@ jobs:
       # The file is gitignored (android/.gitignore → app/upload-keystore.jks)
       # so it only ever exists on the runner, never in the repo.
       - name: Decode upload keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
         run: |
-          if [ -z "${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}" ]; then
+          if [ -z "$KEYSTORE_B64" ]; then
             echo "::error::ANDROID_UPLOAD_KEYSTORE_BASE64 secret is not set. Run the keystore setup first."
             exit 1
           fi
-          echo "${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+          # tr strips any stray whitespace/newlines that a CI secret can pick up
+          # so `base64 -d` never chokes on them.
+          printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 -d > android/app/upload-keystore.jks
           echo "Wrote $(stat -c%s android/app/upload-keystore.jks) bytes to android/app/upload-keystore.jks"
 
       - name: Make gradlew executable
