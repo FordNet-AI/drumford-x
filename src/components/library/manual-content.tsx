@@ -21,7 +21,7 @@ export function ManualContent() {
           Album art (any common image format) is picked up automatically if present.
         </p>
         <p>
-          In Electron mode, the <span className="text-[#00e5ff]">Browse ParaDB</span> tab lets you search and one-click-download
+          In Electron mode, the <span className="text-[#00e5ff]">Community Charts</span> tab lets you search and one-click-download
           community charts from paradb.net directly into your library.
         </p>
       </Section>

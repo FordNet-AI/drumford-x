@@ -66,7 +66,7 @@ export function ParaDBToolbar({
           : `${resultCount.toLocaleString()} of ${totalCount.toLocaleString()}`}
       </span>
       {catalogAgeLabel && (
-        <span className="text-[10px] text-[#444]" title="When the local catalog was last refreshed from ParaDB">
+        <span className="text-[10px] text-[#444]" title="When the local catalog was last refreshed from paradb.net">
           · updated {catalogAgeLabel}
         </span>
       )}
@@ -78,7 +78,7 @@ export function ParaDBToolbar({
         onClick={onRefresh}
         disabled={isRefreshing}
         className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#888] bg-[#050508] border border-[#1a1a2e] rounded-lg hover:border-[#2a2a4a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        title="Re-download the catalog from ParaDB"
+        title="Re-download the catalog from paradb.net"
       >
         <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
         <span>{isRefreshing ? 'Refreshing…' : 'Refresh'}</span>

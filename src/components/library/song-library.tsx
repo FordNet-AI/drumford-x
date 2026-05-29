@@ -231,7 +231,7 @@ export function SongLibrary() {
                 <p className="text-[#555] text-sm">No songs imported yet</p>
                 <p className="text-[#333] text-xs mt-1">
                   {isElectron
-                    ? 'Search ParaDB above or drop song folders here'
+                    ? 'Browse Community Charts above or drop song folders here'
                     : 'Download songs from paradb.net and drop them here'
                   }
                 </p>
@@ -239,7 +239,7 @@ export function SongLibrary() {
                   onClick={() => setActiveTab('paradb')}
                   className="mt-4 px-4 py-2 text-xs border border-[#1a1a2e] rounded hover:border-[#00e5ff] hover:text-[#00e5ff] transition-colors text-[#888]"
                 >
-                  Browse ParaDB →
+                  Community Charts →
                 </button>
               </div>
             ) : (
