@@ -26,9 +26,18 @@ export const DEFAULT_CLASS_TO_LANE: Record<string, string> = {
   'BP_Kick_C':        'kick',
   // Snare
   'BP_Snare_C':       'snare',
-  // Hi-hat (stick + foot pedal)
+  // Hi-hat — Paradiddle's base classes plus common paredit/community
+  // variants (open/closed, abbreviated "Hat"). Anything else falls through
+  // to the substring matcher in resolveInstrumentLane().
   'BP_HiHat_C':       'hihat',
   'BP_HiHatFoot_C':   'hihat',
+  'BP_HiHatOpen_C':   'hihat',
+  'BP_HiHatClosed_C': 'hihat',
+  'BP_OpenHiHat_C':   'hihat',
+  'BP_ClosedHiHat_C': 'hihat',
+  'BP_OpenHat_C':     'hihat',
+  'BP_ClosedHat_C':   'hihat',
+  'BP_Hat_C':         'hihat',
   // Toms
   'BP_Tom1_C':        'tom1',
   'BP_Tom2_C':        'tom2',
@@ -148,5 +157,10 @@ export function resolveInstrumentLane(
   if (lower.includes('splash')) return 'splash'
   if (lower.includes('crash')) return 'crash'
   if (lower.includes('ride')) return 'ride'
+  // Final hi-hat catch-all for paredit-modded class names that abbreviate
+  // "HiHat" to just "Hat" (BP_OpenHat_C, BP_ClosedHat_C, etc). Runs LAST so
+  // every more specific pattern above (snare/tom/floor/china/etc) had a
+  // chance — "hat" only kicks in if literally nothing else matched.
+  if (lower.includes('hat')) return 'hihat'
   return null
 }

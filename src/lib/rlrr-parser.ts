@@ -101,6 +101,12 @@ export function parseRlrr(
 
   const notes: HighwayNote[] = []
   let skipped = 0
+  // Track which classes ended up hidden (laneIndex === -1) so we can warn
+  // the user with the actual class names. Without this, "my hi-hat is
+  // missing" is unactionable — we'd never know it was e.g. `BP_OpenHat_C`
+  // that wasn't in the kit map. Counting per class lets the warning say
+  // "47 of these were `BP_OpenHat_C`" so the next mapping addition is obvious.
+  const hiddenClassCounts = new Map<string, number>()
 
   for (const event of data.events) {
     const instClass = instrumentNameToClass.get(event.name)
@@ -114,6 +120,10 @@ export function parseRlrr(
     // again if the user enables the lane later, but renderer skips drawing.
     const laneIndex = laneId ? (laneIndexMap.get(laneId) ?? -1) : -1
 
+    if (laneIndex === -1) {
+      hiddenClassCounts.set(instClass, (hiddenClassCounts.get(instClass) ?? 0) + 1)
+    }
+
     notes.push({
       time: event.time,
       laneIndex,
@@ -125,6 +135,16 @@ export function parseRlrr(
 
   if (skipped > 0) {
     console.warn(`[rlrr-parser] Skipped ${skipped} events with unmapped instruments`)
+  }
+  if (hiddenClassCounts.size > 0) {
+    // One log line per hidden class with its count, so DevTools shows exactly
+    // which class(es) the user needs in their kit map. Sorted by count desc
+    // so the most-impactful missing class appears first.
+    const entries = [...hiddenClassCounts.entries()].sort((a, b) => b[1] - a[1])
+    console.warn(
+      `[rlrr-parser] ${entries.reduce((s, [, n]) => s + n, 0)} notes hidden in "${filename}" — instrument classes not mapped to any enabled lane:`,
+      Object.fromEntries(entries),
+    )
   }
 
   notes.sort((a, b) => a.time - b.time)
