@@ -23,6 +23,61 @@ import { extractSongZip } from './zip-import'
 
 const PARADB_BASE = 'https://paradb.net'
 
+/** Pause helper for backoff + polite request pacing. */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** Exponential backoff with full jitter, capped at 8s. */
+function backoffDelay(attempt: number): number {
+  const ceil = Math.min(500 * 2 ** attempt, 8000)
+  return Math.floor(ceil / 2 + Math.random() * (ceil / 2))
+}
+
+/** Parse a Retry-After header (seconds form) → ms, capped 30s. */
+function parseRetryAfter(value: string | null): number | null {
+  if (!value) return null
+  const secs = parseInt(value, 10)
+  if (!Number.isNaN(secs) && secs >= 0) return Math.min(secs * 1000, 30_000)
+  return null
+}
+
+/**
+ * fetch() wrapper that retries transient failures (429 + 5xx + network),
+ * honoring Retry-After when present, otherwise exponential backoff with
+ * jitter. Mirrors the Electron-main implementation in electron/paradb.ts —
+ * ParaDB's operator asked third-party clients to be resilient to their rate
+ * limits, and Android hits the same API directly (via CapacitorHttp).
+ */
+async function fetchWithRetry(
+  url: string,
+  init?: RequestInit,
+  opts: { retries?: number; label?: string } = {},
+): Promise<Response> {
+  const retries = opts.retries ?? 4
+  const label = opts.label ?? 'request'
+  let lastErr: unknown
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const resp = await fetch(url, init)
+      if ((resp.status === 429 || resp.status >= 500) && attempt < retries) {
+        const delay = parseRetryAfter(resp.headers.get('retry-after')) ?? backoffDelay(attempt)
+        console.warn(`[paradb] ${label}: HTTP ${resp.status}, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`)
+        await sleep(delay)
+        continue
+      }
+      return resp
+    } catch (err) {
+      lastErr = err
+      if (attempt >= retries) break
+      const delay = backoffDelay(attempt)
+      console.warn(`[paradb] ${label}: network error, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`, err)
+      await sleep(delay)
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(`[paradb] ${label} failed after ${retries} retries`)
+}
+
 interface ParaDBDifficulty {
   difficulty: string | null
   difficultyName: string
@@ -67,7 +122,7 @@ function normalizeMap(m: ParaDBMap): ParaDBSearchResult {
 async function paradbSearch(query: string): Promise<ParaDBSearchResult[]> {
   const url = new URL(`${PARADB_BASE}/api/maps`)
   if (query.trim()) url.searchParams.set('search', query.trim())
-  const resp = await fetch(url.toString())
+  const resp = await fetchWithRetry(url.toString(), undefined, { label: 'search' })
   if (!resp.ok) throw new Error(`ParaDB search failed: ${resp.status}`)
   const data = (await resp.json()) as ParaDBSearchResponse
   if (!data.success) throw new Error('ParaDB search returned unsuccessful')
@@ -77,6 +132,9 @@ async function paradbSearch(query: string): Promise<ParaDBSearchResult[]> {
 /** Paginate through the whole ParaDB catalog (~6,000 entries). */
 async function paradbCatalog(onProgress: (loaded: number) => void): Promise<ParaDBSearchResult[]> {
   const CHUNK_SIZE = 1000
+  // Polite pacing between pages — keeps the ~6 sequential catalog requests
+  // from arriving as a tight burst against ParaDB's rate limits.
+  const PAGE_DELAY_MS = 300
   const all: ParaDBMap[] = []
   let offset = 0
   const MAX_TOTAL = 20000
@@ -85,7 +143,7 @@ async function paradbCatalog(onProgress: (loaded: number) => void): Promise<Para
     const url = new URL(`${PARADB_BASE}/api/maps`)
     url.searchParams.set('limit', String(CHUNK_SIZE))
     url.searchParams.set('offset', String(offset))
-    const resp = await fetch(url.toString())
+    const resp = await fetchWithRetry(url.toString(), undefined, { label: `catalog@${offset}` })
     if (!resp.ok) throw new Error(`Catalog fetch failed at offset ${offset}: ${resp.status}`)
     const data = (await resp.json()) as ParaDBSearchResponse
     if (!data.success) throw new Error(`Catalog page at offset ${offset} returned unsuccessful`)
@@ -95,6 +153,7 @@ async function paradbCatalog(onProgress: (loaded: number) => void): Promise<Para
     onProgress(all.length)
     if (page.length < CHUNK_SIZE) break
     offset += page.length
+    await sleep(PAGE_DELAY_MS) // pace requests between pages
   }
   return all.map(normalizeMap)
 }
@@ -108,9 +167,10 @@ async function paradbDownload(
   mapId: string,
   onProgress: (progress: number) => void,
 ): Promise<{ folderName: string; files: { name: string; data: ArrayBuffer; type: string }[] }> {
-  // Step 1: Fetch zip with streaming progress
+  // Step 1: Fetch zip with streaming progress (retry through rate limits /
+  // transient errors — a download is a single idempotent GET).
   const url = `${PARADB_BASE}/api/maps/${mapId}/download`
-  const resp = await fetch(url, { redirect: 'follow' })
+  const resp = await fetchWithRetry(url, { redirect: 'follow' }, { label: `download ${mapId}` })
   if (!resp.ok) throw new Error(`ParaDB download failed: ${resp.status}`)
 
   const contentLength = resp.headers.get('content-length')
