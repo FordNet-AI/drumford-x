@@ -47,7 +47,7 @@ export const useEditorView = create<EditorViewState>()((set, get) => ({
   setViewStartTime: (t) => set({ viewStartTime: Math.max(0, t) }),
 
   zoomBy: (factor, anchorTime, anchorY) => {
-    const { pxPerSec, viewStartTime } = get()
+    const { pxPerSec } = get()
     const next = clampZoom(pxPerSec * factor)
     if (anchorTime === undefined || anchorY === undefined) {
       set({ pxPerSec: next })
@@ -55,7 +55,6 @@ export const useEditorView = create<EditorViewState>()((set, get) => ({
     }
     // Keep anchorTime fixed at anchorY: anchorY = (anchorTime - viewStart) * pps.
     // Solve for the new viewStart so the same pixel maps to the same time.
-    void viewStartTime
     const newViewStart = anchorTime - anchorY / next
     set({ pxPerSec: next, viewStartTime: Math.max(0, newViewStart) })
   },
