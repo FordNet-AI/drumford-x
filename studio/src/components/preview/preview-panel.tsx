@@ -80,6 +80,12 @@ export function PreviewPanel() {
     }
   }, [audioBlob])
 
+  // Keep the playback store's duration synced to the chart length, so the
+  // (audio-less) wall clock stops at the end and Play restarts from the top.
+  useEffect(() => {
+    usePlaybackStore.getState().setDuration(length)
+  }, [length])
+
   // Play/pause → drive the engine. Gated on `audioReady` so a Play pressed
   // before decode finishes waits; this effect re-fires when `audioReady` flips
   // true and starts playback then (mirrors the player's highway-view).
