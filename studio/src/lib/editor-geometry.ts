@@ -107,6 +107,43 @@ export function topNoteAt(
   return null
 }
 
+/**
+ * The note to edit when the velocity ribbon is grabbed at canvas y `py`.
+ *
+ * The ribbon is a single column, so we pick purely by vertical proximity. When
+ * several notes share a y, prefer a SELECTED one (so the user edits the note
+ * they just clicked), else the topmost (last in array). Returns null if no note
+ * is within `tol`/2 of `py`.
+ */
+export function ribbonNoteAt(
+  py: number,
+  notes: StudioNote[],
+  selection: ReadonlySet<string>,
+  layout: EditorLayout,
+  viewStartTime: number,
+  pxPerSec: number,
+  tol: number = NOTE_HIT_H,
+): StudioNote | null {
+  if (py < layout.headerH) return null
+  let best: StudioNote | null = null
+  let bestSelected = false
+  for (let i = notes.length - 1; i >= 0; i--) {
+    const n = notes[i]!
+    const y = noteY(n.time, layout, viewStartTime, pxPerSec)
+    if (Math.abs(py - y) > tol / 2) continue
+    const sel = selection.has(n.id)
+    // First match wins (topmost); a selected match upgrades over a non-selected.
+    if (best === null) {
+      best = n
+      bestSelected = sel
+    } else if (sel && !bestSelected) {
+      best = n
+      bestSelected = true
+    }
+  }
+  return best
+}
+
 /** Rectangle in canvas px (corners in any order). */
 export interface PixelRect {
   x0: number

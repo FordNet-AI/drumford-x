@@ -9,6 +9,7 @@ import {
   noteCenterX,
   hitNote,
   topNoteAt,
+  ribbonNoteAt,
   noteInRect,
 } from './editor-geometry'
 
@@ -103,6 +104,27 @@ describe('topNoteAt', () => {
   })
   it('returns null on empty space', () => {
     expect(topNoteAt(layout.laneLeft + 10, HEADER_H + 300, notes, layout, VS, PPS)).toBeNull()
+  })
+})
+
+describe('ribbonNoteAt', () => {
+  const empty = new Set<string>()
+  it('finds the note at a given y regardless of x (single ribbon column)', () => {
+    const notes = [note('a', 1.0, snareClass)] // y = HEADER_H+100
+    expect(ribbonNoteAt(HEADER_H + 100, notes, empty, layout, VS, PPS)?.id).toBe('a')
+  })
+  it('returns null in the header band and on empty space', () => {
+    const notes = [note('a', 1.0, snareClass)]
+    expect(ribbonNoteAt(HEADER_H - 2, notes, empty, layout, VS, PPS)).toBeNull()
+    expect(ribbonNoteAt(HEADER_H + 400, notes, empty, layout, VS, PPS)).toBeNull()
+  })
+  it('prefers a SELECTED note when several share a y', () => {
+    // two notes at the same time → same y; b is selected
+    const notes = [note('a', 1.0, snareClass), note('b', 1.0, hihatClass)]
+    const sel = new Set(['b'])
+    expect(ribbonNoteAt(HEADER_H + 100, notes, sel, layout, VS, PPS)?.id).toBe('b')
+    // with none selected, topmost (last in array) wins
+    expect(ribbonNoteAt(HEADER_H + 100, notes, empty, layout, VS, PPS)?.id).toBe('b')
   })
 })
 

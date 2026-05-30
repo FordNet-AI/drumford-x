@@ -6,6 +6,8 @@ import { editorTimeToY, editorYToTime, subdivisionSeconds } from '@studio/lib/gr
 import {
   computeLayout,
   columnForClass,
+  ribbonBarLength,
+  RIBBON_PAD,
   type EditorLayout,
 } from '@studio/lib/editor-layout'
 import { isKickClass, columnClassFor } from '@studio/lib/editor-geometry'
@@ -16,6 +18,7 @@ import {
   useEditorInteractions,
   type Marquee,
   type DragPreview,
+  type VelPreview,
 } from './use-editor-interactions'
 
 /* ───────────────────────── colors / constants ───────────────────────── */
@@ -32,6 +35,31 @@ const SUB_LINE = 'rgba(120,140,180,0.07)'
 const BAR_LINE = 'rgba(150,175,220,0.34)'
 const TEXT_DIM = '#7a8499'
 const NOTE_H = 12 // note block height (px)
+
+/* Velocity shading — mirrors resolve-notes.ts thresholds so the editor's
+ * brightness matches what Preview / the player render for the same chart. */
+const GHOST_THRESHOLD = 30 // vel <= → ghost (dimmest)
+const ACCENT_THRESHOLD = 90 // vel >= → accent (brightest)
+
+/**
+ * Fill opacity for a note of velocity `vel` (1..127). Low velocity reads dim,
+ * high velocity reads bright/solid. The mapping is piecewise so the ghost and
+ * accent BANDS are visually distinct (not just a flat linear ramp): ghosts sit
+ * in [0.30, 0.45], normals ramp [0.50, 0.80], accents in [0.85, 1.0].
+ */
+function velFillAlpha(vel: number): number {
+  const v = Math.min(127, Math.max(1, vel))
+  if (v <= GHOST_THRESHOLD) {
+    // 1..30 → 0.30..0.45
+    return 0.3 + (v / GHOST_THRESHOLD) * 0.15
+  }
+  if (v >= ACCENT_THRESHOLD) {
+    // 90..127 → 0.85..1.0
+    return 0.85 + ((v - ACCENT_THRESHOLD) / (127 - ACCENT_THRESHOLD)) * 0.15
+  }
+  // 31..89 → 0.50..0.80
+  return 0.5 + ((v - GHOST_THRESHOLD) / (ACCENT_THRESHOLD - GHOST_THRESHOLD)) * 0.3
+}
 
 /** Per-class cache of the resolved lane color so we don't resolve every frame. */
 const classColorCache = new Map<string, string>()
@@ -168,6 +196,7 @@ interface DrawParams {
   currentTime: number
   marquee: Marquee | null
   dragPreview: DragPreview | null
+  velPreview: VelPreview | null
   layout: EditorLayout
 }
 
@@ -194,8 +223,13 @@ function roundRect(
  * up by the caller; everything here works in CSS pixels.
  */
 export function drawEditor(p: DrawParams): void {
-  const { ctx, width, height, chart, selection, snap, viewStartTime, pxPerSec, currentTime, marquee, dragPreview, layout } = p
+  const { ctx, width, height, chart, selection, snap, viewStartTime, pxPerSec, currentTime, marquee, dragPreview, velPreview, layout } = p
   const { headerH, laneLeft, laneWidth, columns } = layout
+
+  // Effective velocity for a note, applying the live ribbon-drag preview so the
+  // bar (and note shading) follow the cursor without mutating the store.
+  const effVel = (n: StudioNote): number =>
+    velPreview && velPreview.id === n.id ? velPreview.vel : n.vel
 
   // Effective (time, class) for a note, applying the live drag preview so the
   // selection follows the cursor without mutating the store.
@@ -284,26 +318,29 @@ export function drawEditor(p: DrawParams): void {
     return t >= minTime - 0.5 && t <= maxTime + 0.5
   })
 
-  // Kick full-width bars.
+  // Kick full-width bars. Fill opacity encodes velocity (ghost/accent bands).
   for (const n of visibleNotes) {
     const cls = effClass(n)
     if (!isKickClass(cls)) continue
     const y = yOf(effTime(n))
     const selected = selection.has(n.id)
+    const a = velFillAlpha(effVel(n))
     const h = NOTE_H - 2
     roundRect(ctx, laneLeft + 1, y - h / 2, laneWidth - 2, h, 3)
-    ctx.fillStyle = selected ? withAlpha(KICK_COLOR, 0.55) : withAlpha(KICK_COLOR, 0.32)
+    // scale the kick's base alpha (0.32) by the velocity factor so kicks stay
+    // subtler than column notes while still reading velocity.
+    ctx.fillStyle = withAlpha(KICK_COLOR, a * 0.65)
     ctx.fill()
     ctx.strokeStyle = selected ? '#ffffff' : KICK_COLOR
     ctx.lineWidth = selected ? 2 : 1
     ctx.stroke()
     // also mark in the kick gutter so it's clearly a kick row
-    ctx.fillStyle = selected ? '#ffffff' : KICK_COLOR
+    ctx.fillStyle = selected ? '#ffffff' : withAlpha(KICK_COLOR, Math.max(0.5, a))
     roundRect(ctx, layout.kickX + 3, y - h / 2, layout.kickW - 6, h, 2)
     ctx.fill()
   }
 
-  // Column notes.
+  // Column notes. Fill opacity encodes velocity (ghost dim → accent solid).
   for (const n of visibleNotes) {
     const cls = effClass(n)
     if (isKickClass(cls)) continue
@@ -312,11 +349,12 @@ export function drawEditor(p: DrawParams): void {
     const y = yOf(effTime(n))
     const selected = selection.has(n.id)
     const color = colorForClass(cls)
+    const a = velFillAlpha(effVel(n))
     const pad = 4
     const w = col.width - pad * 2
     const x = col.x + pad
     roundRect(ctx, x, y - NOTE_H / 2, w, NOTE_H, 3)
-    ctx.fillStyle = selected ? color : withAlpha(color, 0.82)
+    ctx.fillStyle = withAlpha(color, a)
     ctx.fill()
     if (selected) {
       ctx.strokeStyle = '#ffffff'
@@ -326,6 +364,42 @@ export function drawEditor(p: DrawParams): void {
       ctx.strokeStyle = withAlpha(color, 0.9)
       ctx.lineWidth = 1
       ctx.stroke()
+    }
+  }
+
+  /* velocity ribbon (right strip): one bar per visible note, length ∝ vel.
+     Drag a bar horizontally to edit that note's velocity (see interactions). */
+  if (layout.ribbonW > 0) {
+    // strip background
+    ctx.fillStyle = 'rgba(255,255,255,0.022)'
+    ctx.fillRect(layout.ribbonX, laneTop, layout.ribbonW, laneH)
+    ctx.strokeStyle = COL_DIVIDER
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(Math.round(layout.ribbonX) + 0.5, laneTop)
+    ctx.lineTo(Math.round(layout.ribbonX) + 0.5, height)
+    ctx.stroke()
+
+    const barX = layout.ribbonX + RIBBON_PAD
+    const barH = 4
+    for (const n of visibleNotes) {
+      const y = yOf(effTime(n))
+      if (y < laneTop - 4 || y > height + 4) continue
+      const color = isKickClass(effClass(n)) ? KICK_COLOR : colorForClass(effClass(n))
+      const selected = selection.has(n.id)
+      const len = ribbonBarLength(layout, effVel(n))
+      // track (faint full-width) then the value bar
+      ctx.fillStyle = 'rgba(255,255,255,0.05)'
+      roundRect(ctx, barX, y - barH / 2, layout.ribbonW - RIBBON_PAD * 2, barH, 2)
+      ctx.fill()
+      ctx.fillStyle = withAlpha(color, selected ? 1 : 0.85)
+      roundRect(ctx, barX, y - barH / 2, Math.max(2, len), barH, 2)
+      ctx.fill()
+      // a small handle dot at the bar end aids dragging / reads the value
+      ctx.fillStyle = selected ? '#ffffff' : withAlpha(color, 0.95)
+      ctx.beginPath()
+      ctx.arc(barX + Math.max(2, len), y, selected ? 3 : 2.2, 0, Math.PI * 2)
+      ctx.fill()
     }
   }
 
@@ -399,6 +473,12 @@ export function drawEditor(p: DrawParams): void {
     const label = lane?.shortLabel ?? col.instrumentClass
     ctx.fillText(label, col.cx, headerH / 2 + 1)
   }
+  // velocity ribbon header label
+  if (layout.ribbonW > 0) {
+    ctx.fillStyle = TEXT_DIM
+    ctx.font = '9px ui-monospace, monospace'
+    ctx.fillText('VEL', layout.ribbonX + layout.ribbonW / 2, headerH / 2 + 1)
+  }
   ctx.textAlign = 'left'
 }
 
@@ -431,7 +511,7 @@ export function EditorCanvas() {
 
   // Pointer interactions (add/select/move/marquee). Returns the live marquee +
   // drag preview (for drawing) and handlers to attach to the canvas.
-  const { marquee, dragPreview, handlers } = useEditorInteractions({
+  const { marquee, dragPreview, velPreview, handlers } = useEditorInteractions({
     canvasRef,
     getLayout: () => computeLayout(sizeRef.current.width),
   })
@@ -495,9 +575,10 @@ export function EditorCanvas() {
       currentTime: usePlaybackStore.getState().currentTime,
       marquee,
       dragPreview,
+      velPreview,
       layout: computeLayout(width),
     })
-  }, [chart, marquee, dragPreview])
+  }, [chart, marquee, dragPreview, velPreview])
 
   // Keep the ref pointing at the latest draw so the size observer can use it.
   drawRef.current = draw
@@ -505,8 +586,8 @@ export function EditorCanvas() {
   /* direct draw whenever inputs change (preview lesson 2 — no rAF dependency) */
   useEffect(() => {
     if (ready) draw()
-    // chart/selection/snap/zoom/scroll/marquee/dragPreview are deps below
-  }, [ready, draw, chart, selection, snap, pxPerSec, viewStartTime, marquee, dragPreview])
+    // chart/selection/snap/zoom/scroll/marquee/dragPreview/velPreview are deps below
+  }, [ready, draw, chart, selection, snap, pxPerSec, viewStartTime, marquee, dragPreview, velPreview])
 
   /* redraw on playhead movement (scrub/playback) without React re-render */
   useEffect(() => {

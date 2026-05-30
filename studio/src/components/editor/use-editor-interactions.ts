@@ -3,17 +3,21 @@ import { editorYToTime, snapTime } from '@studio/lib/grid'
 import {
   columnIndexAtX,
   isInKickGutter,
+  isInRibbon,
+  ribbonXToVel,
   type EditorLayout,
 } from '@studio/lib/editor-layout'
 import {
   isKickClass,
   columnClassFor,
   topNoteAt,
+  ribbonNoteAt,
   noteInRect,
   type PixelRect,
 } from '@studio/lib/editor-geometry'
 import { useStudioStore } from '@studio/stores/studio-store'
 import { useEditorView } from '@studio/stores/editor-view-store'
+import { usePlaybackStore } from '@studio/stores/playback-store'
 
 /** Live marquee rectangle, in canvas CSS pixels. */
 export interface Marquee {
@@ -32,6 +36,15 @@ export interface DragPreview {
   ids: Set<string>
   dt: number
   dLaneClass: string | null
+}
+
+/**
+ * Live velocity-edit preview, applied VISUALLY by the ribbon while dragging.
+ * The store is only written on drop → one `setVelocity` = one undo step.
+ */
+export interface VelPreview {
+  id: string
+  vel: number
 }
 
 const DRAG_THRESHOLD = 4 // px before a press becomes a drag
@@ -53,6 +66,7 @@ type Gesture =
       moved: boolean
     }
   | { kind: 'marquee'; startX: number; startY: number }
+  | { kind: 'vel-drag'; noteId: string }
 
 export interface UseEditorInteractionsArgs {
   canvasRef: React.RefObject<HTMLCanvasElement | null>
@@ -71,6 +85,7 @@ export function useEditorInteractions({ canvasRef, getLayout }: UseEditorInterac
   const gestureRef = useRef<Gesture>({ kind: 'idle' })
   const [marquee, setMarquee] = useState<Marquee | null>(null)
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
+  const [velPreview, setVelPreview] = useState<VelPreview | null>(null)
 
   const localXY = useCallback(
     (e: ReactPointerEvent): { x: number; y: number } => {
@@ -94,7 +109,31 @@ export function useEditorInteractions({ canvasRef, getLayout }: UseEditorInterac
       const { viewStartTime, pxPerSec } = useEditorView.getState()
       if (y < layout.headerH) return // header band: ignore
 
+      // Time ruler (left strip): click to seek the shared playback clock. This
+      // moves Preview's transport too (same playback-store). Unsnapped — a seek
+      // doesn't need to land on the grid. No gesture starts.
+      if (x < layout.rulerW) {
+        const t = editorYToTime(y - layout.headerH, viewStartTime, pxPerSec)
+        usePlaybackStore.getState().seek(Math.max(0, t))
+        gestureRef.current = { kind: 'idle' }
+        return
+      }
+
       canvas.setPointerCapture(e.pointerId)
+
+      // Velocity ribbon (right strip): grab the note at this y and start a
+      // velocity drag. Editing is previewed live; committed once on drop.
+      if (isInRibbon(layout, x)) {
+        const note = ribbonNoteAt(y, chart.notes, new Set(store.selection), layout, viewStartTime, pxPerSec)
+        if (note) {
+          gestureRef.current = { kind: 'vel-drag', noteId: note.id }
+          setVelPreview({ id: note.id, vel: ribbonXToVel(layout, x) })
+        } else {
+          gestureRef.current = { kind: 'idle' }
+        }
+        return
+      }
+
       const hit = topNoteAt(x, y, chart.notes, layout, viewStartTime, pxPerSec)
       const additive = e.shiftKey
 
@@ -126,16 +165,34 @@ export function useEditorInteractions({ canvasRef, getLayout }: UseEditorInterac
   const onPointerMove = useCallback(
     (e: ReactPointerEvent) => {
       const g = gestureRef.current
-      if (g.kind === 'idle') return
       const { x, y } = localXY(e)
       const layout = getLayout()
       const store = useStudioStore.getState()
       const chart = store.chart
+
+      // Idle hover: hint the ribbon (resize) and the ruler (seek pointer).
+      if (g.kind === 'idle') {
+        const canvas = canvasRef.current
+        if (canvas) {
+          let cursor = 'crosshair'
+          if (chart && y >= layout.headerH) {
+            if (x < layout.rulerW) cursor = 'pointer' // ruler → click to seek
+            else if (isInRibbon(layout, x)) cursor = 'ew-resize' // ribbon → drag vel
+          }
+          canvas.style.cursor = cursor
+        }
+        return
+      }
       if (!chart) return
       const { pxPerSec } = useEditorView.getState()
 
       if (g.kind === 'marquee') {
         setMarquee({ x0: g.startX, y0: g.startY, x1: x, y1: y })
+        return
+      }
+
+      if (g.kind === 'vel-drag') {
+        setVelPreview({ id: g.noteId, vel: ribbonXToVel(layout, x) })
         return
       }
 
@@ -163,7 +220,7 @@ export function useEditorInteractions({ canvasRef, getLayout }: UseEditorInterac
       const ids = store.selection.length ? store.selection : [g.anchorId]
       setDragPreview({ ids: new Set(ids), dt, dLaneClass })
     },
-    [localXY, getLayout],
+    [canvasRef, localXY, getLayout],
   )
 
   const onPointerUp = useCallback(
@@ -180,9 +237,18 @@ export function useEditorInteractions({ canvasRef, getLayout }: UseEditorInterac
       if (!chart) {
         setMarquee(null)
         setDragPreview(null)
+        setVelPreview(null)
         return
       }
       const { viewStartTime, pxPerSec } = useEditorView.getState()
+
+      if (g.kind === 'vel-drag') {
+        // Commit the final velocity as ONE setVelocity → a single undo step.
+        const preview = velPreviewRef.current
+        if (preview) store.setVelocity([preview.id], preview.vel)
+        setVelPreview(null)
+        return
+      }
 
       if (g.kind === 'marquee') {
         const dragged = Math.hypot(x - g.startX, y - g.startY) >= DRAG_THRESHOLD
@@ -224,13 +290,16 @@ export function useEditorInteractions({ canvasRef, getLayout }: UseEditorInterac
       gestureRef.current = { kind: 'idle' }
       setMarquee(null)
       setDragPreview(null)
+      setVelPreview(null)
     },
     [canvasRef],
   )
 
-  // Keep a ref mirror of dragPreview so pointerup reads the latest synchronously.
+  // Keep ref mirrors so pointerup reads the latest values synchronously.
   const dragPreviewRef = useRef<DragPreview | null>(null)
   dragPreviewRef.current = dragPreview
+  const velPreviewRef = useRef<VelPreview | null>(null)
+  velPreviewRef.current = velPreview
 
   const handlers = {
     onPointerDown,
@@ -239,7 +308,7 @@ export function useEditorInteractions({ canvasRef, getLayout }: UseEditorInterac
     onPointerCancel,
   }
 
-  return { marquee, dragPreview, handlers }
+  return { marquee, dragPreview, velPreview, handlers }
 }
 
 /* ── add-note helper (single store call) ─────────────────────────────── */
