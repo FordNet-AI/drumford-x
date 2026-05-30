@@ -73,6 +73,25 @@ export function yToTime(y: number, currentTime: number, pxPerSec: number, height
 }
 
 /**
+ * Editor scroll model — DIFFERENT from the preview's playhead-anchored
+ * {@link timeToY}/{@link yToTime}. The editor is a scrollable, zoomable vertical
+ * timeline: EARLIER time at the TOP, LATER time BELOW. Pure + invertible.
+ *
+ *   y = (time - viewStartTime) * pxPerSec
+ *
+ * `viewStartTime` is the time at the top edge of the lane area (vertical scroll
+ * offset, seconds); `pxPerSec` is the zoom (vertical pixels per second).
+ */
+export function editorTimeToY(time: number, viewStartTime: number, pxPerSec: number): number {
+  return (time - viewStartTime) * pxPerSec
+}
+
+/** Exact inverse of {@link editorTimeToY}: pixel `y` → absolute time (seconds). */
+export function editorYToTime(y: number, viewStartTime: number, pxPerSec: number): number {
+  return viewStartTime + y / pxPerSec
+}
+
+/**
  * One representative instrument CLASS per non-kick lane, chosen by lane id.
  * Picks the natural "base" class so the column header reads sensibly; any
  * lane without an explicit pick falls back to the first class in

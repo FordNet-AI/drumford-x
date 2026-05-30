@@ -5,6 +5,8 @@ import {
   snapTime,
   timeToY,
   yToTime,
+  editorTimeToY,
+  editorYToTime,
   laneOrder,
 } from './grid'
 
@@ -64,6 +66,34 @@ describe('timeToY / yToTime round-trip', () => {
     expect(timeToY(c + 1, c, pps, h)).toBeLessThan(playheadY)
     // past (t < c) is lower down → larger y
     expect(timeToY(c - 1, c, pps, h)).toBeGreaterThan(playheadY)
+  })
+})
+
+describe('editorTimeToY / editorYToTime round-trip', () => {
+  const cases: Array<[number, number]> = [
+    [3.2, 1.0],
+    [0.0, 0.0],
+    [10.5, 4.25],
+  ]
+  it.each(cases)('round-trips t=%s, viewStart=%s', (t, vs) => {
+    const pps = 120
+    expect(editorYToTime(editorTimeToY(t, vs, pps), vs, pps)).toBeCloseTo(t, 6)
+  })
+
+  it('puts EARLIER time at the TOP (smaller y) and LATER time BELOW', () => {
+    const pps = 120
+    const vs = 2
+    // a later time is further down the canvas → larger y
+    expect(editorTimeToY(5, vs, pps)).toBeGreaterThan(editorTimeToY(3, vs, pps))
+    // the view-start time sits exactly at the top edge (y = 0)
+    expect(editorTimeToY(vs, vs, pps)).toBe(0)
+  })
+
+  it('pxPerSec sets the pixels-per-second scale', () => {
+    // 1 second below the top, at 120 px/s, is 120px down.
+    expect(editorTimeToY(1, 0, 120)).toBe(120)
+    // zooming in (240 px/s) doubles the pixel distance.
+    expect(editorTimeToY(1, 0, 240)).toBe(240)
   })
 })
 
