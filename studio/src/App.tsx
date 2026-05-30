@@ -1,26 +1,28 @@
 import { useState } from 'react'
 import { useStudioStore } from '@studio/stores/studio-store'
-import { useEditorView } from '@studio/stores/editor-view-store'
-import { midiToChart } from '@studio/lib/midi-to-chart'
-import { synthDemoBeatMidi } from '@studio/lib/demo-beat'
 import { PreviewPanel } from '@studio/components/preview/preview-panel'
 import { EditorGrid } from '@studio/components/editor/editor-grid'
+import { ImportPanel } from '@studio/components/import-panel'
+import { MetadataPanel } from '@studio/components/metadata-panel'
 
-type StudioView = 'preview' | 'editor'
+type StudioView = 'import' | 'preview' | 'editor' | 'metadata'
+
+// Tabs shown once a chart is loaded. "Import" stays available so the user can
+// re-import, open a different chart, or attach/replace the backing track.
+const VIEWS: StudioView[] = ['import', 'preview', 'editor', 'metadata']
 
 export default function App() {
   const chart = useStudioStore((s) => s.chart)
-  const loadChart = useStudioStore((s) => s.loadChart)
   const [view, setView] = useState<StudioView>('preview')
 
-  // TEMP: dev demo loader — replaced by the import panel in Phase 5
-  const loadDemo = () => {
-    const { chart } = midiToChart(synthDemoBeatMidi(), { title: 'Demo Beat', artist: 'DrumFord Lab' })
-    loadChart(chart)
-    useEditorView.getState().reset()
-    // clear any stale undo history from a previous chart
-    useStudioStore.temporal.getState().clear()
-  }
+  // With no chart there's nothing to preview/edit — show the import panel.
+  const activeView: StudioView = chart ? view : 'import'
+
+  // The import panel calls this after loading a chart. If the imported MIDI left
+  // unmapped notes, stay on Import so the remap UI is visible; otherwise jump to
+  // Preview so the freshly-loaded chart is shown.
+  const handleImported = (info: { hasUnmapped: boolean }) =>
+    setView(info.hasUnmapped ? 'import' : 'preview')
 
   return (
     <div className="flex h-full flex-col">
@@ -35,17 +37,17 @@ export default function App() {
 
           {chart && (
             <div className="flex items-center rounded-md border border-[#1a1a2e] bg-[#0d1424] p-0.5">
-              {(['preview', 'editor'] as const).map((v) => (
+              {VIEWS.map((v) => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
                   className={
                     'rounded px-3 py-1 text-xs tracking-wide capitalize transition-colors ' +
-                    (view === v
+                    (activeView === v
                       ? 'bg-[#00e5ff] text-[#050508]'
                       : 'text-[#8a93a8] hover:text-[#cdd3df]')
                   }
-                  aria-pressed={view === v}
+                  aria-pressed={activeView === v}
                 >
                   {v}
                 </button>
@@ -53,27 +55,17 @@ export default function App() {
             </div>
           )}
         </div>
-
-        {/* TEMP: dev demo loader — replaced by the import panel in Phase 5 */}
-        <button
-          onClick={loadDemo}
-          className="rounded border border-[#00e5ff55] bg-[#00e5ff11] px-3 py-1.5 text-xs tracking-wide text-[#00e5ff] transition-colors hover:bg-[#00e5ff22]"
-        >
-          Load demo beat
-        </button>
       </header>
 
-      <main className="min-h-0 flex-1">
-        {chart ? (
-          view === 'preview' ? (
-            <PreviewPanel />
-          ) : (
-            <EditorGrid />
-          )
+      <main className="min-h-0 flex-1 overflow-auto">
+        {activeView === 'import' ? (
+          <ImportPanel onImported={handleImported} />
+        ) : activeView === 'preview' ? (
+          <PreviewPanel />
+        ) : activeView === 'editor' ? (
+          <EditorGrid />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-[#555]">
-            Load a chart to preview or edit.
-          </div>
+          <MetadataPanel />
         )}
       </main>
     </div>
