@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+/* Minimal dark base for the Studio scaffold. Fonts are loaded via <link> in
+   index.html (Tailwind v4's lightningcss strips remote @imports at build). */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #050508;
+  color: #ffffffee;
+  font-family: 'Share Tech Mono', monospace;
+}
