@@ -38,6 +38,15 @@ describe('midiToChart', () => {
     expect(chart.notes.filter(n => n.time === 0).length).toBe(3) // kick+hat+crash
   })
 
+  it('handles an empty (note-less) MIDI without producing -Infinity/null length', () => {
+    const midi = new Midi(); midi.header.setTempo(120) // no notes
+    const { chart } = midiToChart(new Uint8Array(midi.toArray()).buffer, { title: 'E', artist: 'E' })
+    expect(chart.notes.length).toBe(0)
+    expect(chart.bpmEvents[0]?.time).toBe(0)
+    expect(Number.isFinite(chart.meta.length)).toBe(true)
+    expect(chart.meta.length).toBeGreaterThanOrEqual(0)
+  })
+
   it('reports unmapped GM notes instead of dropping them silently', () => {
     const midi = new Midi(); const t = midi.addTrack(); t.channel = 9
     t.addNote({ midi: 39, time: 0, duration: 0.05, velocity: 0.8 }) // 39 = hand clap, not in our map

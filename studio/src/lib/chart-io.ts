@@ -81,6 +81,10 @@ export function chartToRlrr(chart: StudioChart, audioFileName: string): string {
 export function rlrrToChart(json: string): StudioChart {
   const data: RlrrFile = JSON.parse(json)
 
+  // `.rlrr` events reference instruments BY NAME, so round-trip fidelity assumes
+  // instrument display-names are unique per class. This holds for the built-in
+  // `CLASS_TO_NAME` (injective), but a hand-authored note whose `instrumentClass`
+  // happens to equal another class's display name could collide here.
   const nameToClass = new Map<string, string>()
   for (const inst of data.instruments) {
     nameToClass.set(inst.name, inst.class)
@@ -102,7 +106,7 @@ export function rlrrToChart(json: string): StudioChart {
       complexity: data.recordingMetadata.complexity,
       length: data.recordingMetadata.length,
     },
-    bpmEvents: data.bpmEvents,
+    bpmEvents: data.bpmEvents.map(e => ({ ...e, timeSignature: e.timeSignature ? ([...e.timeSignature] as [number, number]) : undefined })),
     notes,
   }
 }

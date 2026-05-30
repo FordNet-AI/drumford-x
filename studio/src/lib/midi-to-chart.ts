@@ -15,16 +15,18 @@ export function midiToChart(
     for (const n of track.notes) {
       const cls = GM_TO_CLASS[n.midi]
       if (!cls) { unmapped[n.midi] = (unmapped[n.midi] || 0) + 1; continue }
-      notes.push({ id: generateId(), time: +n.time.toFixed(4), instrumentClass: cls, vel: Math.max(1, Math.round(n.velocity * 127)) })
+      notes.push({ id: generateId(), time: +n.time.toFixed(4), instrumentClass: cls, vel: Math.min(127, Math.max(1, Math.round(n.velocity * 127))) })
     }
   }
   notes.sort((a, b) => a.time - b.time)
   const ts0 = (midi.header.timeSignatures[0]?.timeSignature ?? [4, 4]) as [number, number]
   const bpmEvents: RlrrBpmEvent[] = (midi.header.tempos.length ? midi.header.tempos : [{ ticks: 0, bpm: 120 }])
-    .map(t => ({ bpm: +t.bpm.toFixed(3), time: +midi.header.ticksToSeconds(t.ticks).toFixed(4), timeSignature: ts0 }))
+    .map(t => ({ bpm: +t.bpm.toFixed(3), time: +midi.header.ticksToSeconds(t.ticks).toFixed(4), timeSignature: [...ts0] as [number, number] }))
   const first = bpmEvents[0]
-  if (!first || first.time > 0) bpmEvents.unshift({ bpm: 120, time: 0, timeSignature: ts0 })
-  const length = +(midi.duration + 1).toFixed(2)
+  if (!first || first.time > 0) bpmEvents.unshift({ bpm: 120, time: 0, timeSignature: [...ts0] as [number, number] })
+  // `@tonejs/midi` `duration` is `Math.max()` over note ends, which is -Infinity
+  // for note-less MIDI; clamp the floor so `length` stays finite (and serializable).
+  const length = +(Math.max(0, midi.duration) + 1).toFixed(2)
   return {
     chart: {
       meta: { title: opts.title, artist: opts.artist, creator: opts.creator ?? 'DrumFord Studio', difficulty: opts.difficulty ?? 'Expert', complexity: 3, length },

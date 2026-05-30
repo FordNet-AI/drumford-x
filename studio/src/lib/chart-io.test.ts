@@ -45,6 +45,39 @@ describe('chart-io round-trip', () => {
     for (const ev of parsed.events) expect(instNames.has(ev.name)).toBe(true)
   })
 
+  it('round-trips a class that is present but absent from CLASS_TO_NAME', () => {
+    // 'BP_Cowbell_C' is not in CLASS_TO_NAME, so chartToRlrr writes name === class
+    // (the `?? cls` fallback), and rlrrToChart recovers it via name→class lookup.
+    const chart: StudioChart = {
+      meta: {
+        title: 'Cowbell', artist: 'More', creator: 'DrumFord Studio',
+        difficulty: 'Expert', complexity: 1, length: 1,
+      },
+      bpmEvents: [{ bpm: 120, time: 0, timeSignature: [4, 4] }],
+      notes: [{ id: generateId(), time: 0, instrumentClass: 'BP_Cowbell_C', vel: 80 }],
+    }
+    const back = rlrrToChart(chartToRlrr(chart, 'song.ogg'))
+    expect(back.notes.length).toBe(1)
+    expect(back.notes[0]?.instrumentClass).toBe('BP_Cowbell_C')
+  })
+
+  it('dedups multiple notes of the same class into exactly one instrument', () => {
+    const chart: StudioChart = {
+      meta: {
+        title: 'Two Kicks', artist: 'Boom', creator: 'DrumFord Studio',
+        difficulty: 'Expert', complexity: 1, length: 1,
+      },
+      bpmEvents: [{ bpm: 120, time: 0, timeSignature: [4, 4] }],
+      notes: [
+        { id: generateId(), time: 0, instrumentClass: 'BP_Kick_C', vel: 100 },
+        { id: generateId(), time: 0.5, instrumentClass: 'BP_Kick_C', vel: 100 },
+      ],
+    }
+    const parsed = JSON.parse(chartToRlrr(chart, 'song.ogg'))
+    const kicks = parsed.instruments.filter((i: { class: string }) => i.class === 'BP_Kick_C')
+    expect(kicks.length).toBe(1) // dedup intent: one instrument per distinct class
+  })
+
   it('rlrrToChart losslessly recovers notes, bpmEvents, and key meta', () => {
     const chart = sampleChart()
     const json = chartToRlrr(chart, 'song.ogg')
