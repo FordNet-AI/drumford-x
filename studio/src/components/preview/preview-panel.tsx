@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { Play, Pause } from 'lucide-react'
 import { AudioEngine } from '@/lib/audio-engine'
 import { getCurrentBpm } from '@/components/highway/highway-renderer'
@@ -32,6 +32,9 @@ export function PreviewPanel() {
 
   const engineRef = useRef<AudioEngine | null>(null)
   const prevPlayingRef = useRef(false)
+  // True once the song track has finished decoding. Gates engine.play() so a
+  // Play pressed before decode finishes doesn't run against an empty buffer.
+  const [audioReady, setAudioReady] = useState(false)
 
   const length = chart?.meta.length ?? 0
   const bpm = chart ? getCurrentBpm(currentTime, chart.bpmEvents) : 120
@@ -46,42 +49,56 @@ export function PreviewPanel() {
     prevPlayingRef.current = false
 
     if (!audioBlob) {
+      // No audio: scrub-only. Mark "ready" so the (engine-less) play path is
+      // never gated, and there's no loading overlay.
+      setAudioReady(true)
       usePlaybackStore.getState().loadEngine(null)
       return
     }
 
+    setAudioReady(false)
     const engine = new AudioEngine()
     engineRef.current = engine
     usePlaybackStore.getState().loadEngine(engine)
 
     let cancelled = false
-    engine.loadSongTrack(audioBlob).catch((err) => {
-      console.error('[studio/preview] failed to decode audio', err)
-    })
+    engine
+      .loadSongTrack(audioBlob)
+      .then(() => {
+        // Don't flip ready if this effect was torn down mid-decode.
+        if (!cancelled) setAudioReady(true)
+      })
+      .catch((err) => {
+        console.error('[studio/preview] failed to decode audio', err)
+      })
 
     return () => {
       cancelled = true
-      void cancelled
       engine.dispose()
       engineRef.current = null
       usePlaybackStore.getState().loadEngine(null)
     }
   }, [audioBlob])
 
-  // Play/pause → drive the engine (start at the current visual time).
+  // Play/pause → drive the engine. Gated on `audioReady` so a Play pressed
+  // before decode finishes waits; this effect re-fires when `audioReady` flips
+  // true and starts playback then (mirrors the player's highway-view).
   useEffect(() => {
     const engine = engineRef.current
     if (!engine) {
+      // No-audio path: visual no-op playback, just track the transition.
       prevPlayingRef.current = isPlaying
       return
     }
+    if (!audioReady) return // wait for decode; re-runs when audioReady → true
+
     if (isPlaying && !prevPlayingRef.current) {
       engine.play(usePlaybackStore.getState().currentTime, usePlaybackStore.getState().speed)
     } else if (!isPlaying && prevPlayingRef.current) {
       engine.stop()
     }
     prevPlayingRef.current = isPlaying
-  }, [isPlaying])
+  }, [isPlaying, audioReady])
 
   // Speed changes re-anchor the engine clock.
   useEffect(() => {
@@ -89,14 +106,16 @@ export function PreviewPanel() {
   }, [speed])
 
   // Seek — restart the engine at the new position if currently playing.
+  // Only touch the engine once audio is ready (otherwise the play effect will
+  // start it at the seeked currentTime when decode completes).
   const handleSeek = useCallback((time: number) => {
     seek(time)
     const engine = engineRef.current
-    if (engine && usePlaybackStore.getState().isPlaying) {
+    if (engine && audioReady && usePlaybackStore.getState().isPlaying) {
       engine.stop()
       engine.play(time, usePlaybackStore.getState().speed)
     }
-  }, [seek])
+  }, [seek, audioReady])
 
   // Spacebar toggles play/pause (when not focused in an input).
   useEffect(() => {
