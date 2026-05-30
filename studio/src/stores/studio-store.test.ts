@@ -44,6 +44,29 @@ describe('studio-store: loading & meta', () => {
     expect(get().chart!.meta.artist).toBe('A') // untouched
     expect(get().chart!.meta).not.toBe(before) // new object
   })
+
+  it('setAudio sets and clears chart.audio with one history entry per change', () => {
+    const before = get().chart!
+    expect(before.audio).toBeUndefined()
+    expect(temporal().pastStates.length).toBe(0)
+
+    const blob = new Blob([new Uint8Array([1, 2, 3])], { type: 'audio/wav' })
+    get().setAudio({ blob, name: 'song.wav' })
+    expect(get().chart!.audio?.name).toBe('song.wav')
+    expect(get().chart!.audio?.blob).toBe(blob)
+    expect(get().chart).not.toBe(before) // new chart object
+    expect(temporal().pastStates.length).toBe(1) // one immutable set → one undo step
+
+    get().setAudio(null)
+    expect(get().chart!.audio).toBeUndefined()
+    expect(temporal().pastStates.length).toBe(2)
+  })
+
+  it('setAudio is a no-op when chart is null', () => {
+    useStudioStore.setState({ chart: null })
+    expect(() => get().setAudio({ blob: new Blob(['x']), name: 'a.wav' })).not.toThrow()
+    expect(get().chart).toBeNull()
+  })
 })
 
 describe('studio-store: note edits', () => {

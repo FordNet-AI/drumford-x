@@ -54,4 +54,17 @@ describe('midiToChart', () => {
     expect(chart.notes.length).toBe(0)
     expect(unmapped[39]).toBe(1)
   })
+
+  it('applies a user-supplied extraMap over GM_TO_CLASS so a formerly-unmapped note maps', () => {
+    const midi = new Midi(); const t = midi.addTrack(); t.channel = 9
+    t.addNote({ midi: 39, time: 0, duration: 0.05, velocity: 0.8 }) // 39 = hand clap, normally unmapped
+    const { chart, unmapped } = midiToChart(
+      new Uint8Array(midi.toArray()).buffer,
+      { title: 'X', artist: 'Y' },
+      { 39: 'BP_Snare_C' },
+    )
+    expect(chart.notes.length).toBe(1)
+    expect(chart.notes[0]!.instrumentClass).toBe('BP_Snare_C')
+    expect(Object.keys(unmapped)).toHaveLength(0)
+  })
 })

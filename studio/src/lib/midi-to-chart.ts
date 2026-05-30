@@ -7,13 +7,21 @@ import { GM_TO_CLASS } from './drum-map'
 export function midiToChart(
   buf: ArrayBuffer,
   opts: { title: string; artist: string; creator?: string; difficulty?: string },
+  /**
+   * Optional per-GM-note overrides, layered OVER `GM_TO_CLASS`. Lets the import
+   * UI resolve previously-unmapped GM numbers (the user picks a target class per
+   * note, then re-runs the conversion). GM numbers still absent after the merge
+   * remain reported in `unmapped`.
+   */
+  extraMap?: Record<number, string>,
 ): { chart: StudioChart; unmapped: Record<number, number> } {
+  const map: Record<number, string> = extraMap ? { ...GM_TO_CLASS, ...extraMap } : GM_TO_CLASS
   const midi = new Midi(buf)
   const notes: StudioNote[] = []
   const unmapped: Record<number, number> = {}
   for (const track of midi.tracks) {
     for (const n of track.notes) {
-      const cls = GM_TO_CLASS[n.midi]
+      const cls = map[n.midi]
       if (!cls) { unmapped[n.midi] = (unmapped[n.midi] || 0) + 1; continue }
       notes.push({ id: generateId(), time: +n.time.toFixed(4), instrumentClass: cls, vel: Math.min(127, Math.max(1, Math.round(n.velocity * 127))) })
     }

@@ -22,6 +22,8 @@ export interface StudioState {
 
   loadChart: (chart: StudioChart) => void
   setMeta: (patch: Partial<StudioMeta>) => void
+  /** Set or clear the backing audio track; no-op when there is no chart. */
+  setAudio: (audio: { blob: Blob; name: string } | null) => void
   /** Append a note; returns its new id ('' when there is no chart). */
   addNote: (note: { time: number; instrumentClass: string; vel: number; duration?: number }) => string
   /**
@@ -58,6 +60,18 @@ export const useStudioStore = create<StudioState>()(
         const chart = get().chart
         if (!chart) return
         set({ chart: { ...chart, meta: { ...chart.meta, ...patch } } })
+      },
+
+      setAudio: (audio) => {
+        const chart = get().chart
+        if (!chart) return
+        // New `chart` object so zundo's reference-equality diff records the change.
+        if (audio) set({ chart: { ...chart, audio } })
+        else {
+          const { audio: _drop, ...rest } = chart
+          void _drop
+          set({ chart: { ...rest } })
+        }
       },
 
       addNote: ({ time, instrumentClass, vel, duration }) => {
