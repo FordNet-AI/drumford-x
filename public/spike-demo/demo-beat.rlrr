@@ -1,0 +1,525 @@
+{
+  "version": 1,
+  "recordingMetadata": {
+    "title": "Spike Demo Beat",
+    "artist": "DrumFord Lab",
+    "creator": "DrumFord (auto from MIDI)",
+    "length": 8.93,
+    "complexity": 3,
+    "coverImagePath": "",
+    "description": "Generated from drum MIDI — spike"
+  },
+  "audioFileData": {
+    "songTracks": [
+      "demo-beat.wav"
+    ],
+    "drumTracks": [],
+    "songPreview": "",
+    "spectrogramTracks": [],
+    "calibrationOffset": 0
+  },
+  "highwaySettings": {
+    "ghostNotes": true,
+    "accentNotes": true,
+    "ghostNoteThreshold": 30,
+    "accentNoteThreshold": 90
+  },
+  "instruments": [
+    {
+      "name": "Kick",
+      "class": "BP_Kick_C",
+      "overrideData": "",
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "volumeMultiplier": 1,
+      "pitchMultiplier": 1,
+      "midiNotes": []
+    },
+    {
+      "name": "HiHat",
+      "class": "BP_HiHat_C",
+      "overrideData": "",
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "volumeMultiplier": 1,
+      "pitchMultiplier": 1,
+      "midiNotes": []
+    },
+    {
+      "name": "Crash",
+      "class": "BP_Crash17_C",
+      "overrideData": "",
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "volumeMultiplier": 1,
+      "pitchMultiplier": 1,
+      "midiNotes": []
+    },
+    {
+      "name": "Snare",
+      "class": "BP_Snare_C",
+      "overrideData": "",
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "volumeMultiplier": 1,
+      "pitchMultiplier": 1,
+      "midiNotes": []
+    },
+    {
+      "name": "Tom1",
+      "class": "BP_Tom1_C",
+      "overrideData": "",
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "volumeMultiplier": 1,
+      "pitchMultiplier": 1,
+      "midiNotes": []
+    },
+    {
+      "name": "Tom2",
+      "class": "BP_Tom2_C",
+      "overrideData": "",
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "volumeMultiplier": 1,
+      "pitchMultiplier": 1,
+      "midiNotes": []
+    },
+    {
+      "name": "FloorTom",
+      "class": "BP_FloorTom_C",
+      "overrideData": "",
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "volumeMultiplier": 1,
+      "pitchMultiplier": 1,
+      "midiNotes": []
+    }
+  ],
+  "events": [
+    {
+      "name": "Kick",
+      "time": 0,
+      "vel": 121,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 0,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "Crash",
+      "time": 0,
+      "vel": 127,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 0.25,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Snare",
+      "time": 0.5,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 0.5,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 0.75,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Kick",
+      "time": 1,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 1,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 1.25,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Snare",
+      "time": 1.5,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 1.5,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 1.75,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Kick",
+      "time": 2,
+      "vel": 121,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 2,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 2.25,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Snare",
+      "time": 2.5,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 2.5,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 2.75,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Kick",
+      "time": 3,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 3,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 3.25,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Snare",
+      "time": 3.5,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 3.5,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 3.75,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Kick",
+      "time": 4,
+      "vel": 121,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 4,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 4.25,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Snare",
+      "time": 4.5,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 4.5,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 4.75,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Kick",
+      "time": 5,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 5,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 5.25,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Snare",
+      "time": 5.5,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 5.5,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 5.75,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Kick",
+      "time": 6,
+      "vel": 121,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 6,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 6.25,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Snare",
+      "time": 6.5,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 6.5,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 6.75,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Kick",
+      "time": 7,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 7,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 7.25,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Snare",
+      "time": 7.5,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 7.5,
+      "vel": 89,
+      "loc": 0
+    },
+    {
+      "name": "Tom1",
+      "time": 7.5,
+      "vel": 108,
+      "loc": 0
+    },
+    {
+      "name": "Tom1",
+      "time": 7.625,
+      "vel": 108,
+      "loc": 0
+    },
+    {
+      "name": "HiHat",
+      "time": 7.75,
+      "vel": 64,
+      "loc": 0
+    },
+    {
+      "name": "Tom2",
+      "time": 7.75,
+      "vel": 114,
+      "loc": 0
+    },
+    {
+      "name": "FloorTom",
+      "time": 7.875,
+      "vel": 121,
+      "loc": 0
+    }
+  ],
+  "bpmEvents": [
+    {
+      "bpm": 120,
+      "time": 0,
+      "timeSignature": [
+        4,
+        4
+      ]
+    }
+  ],
+  "bookmarks": [],
+  "editorData": {
+    "mappingTime": 0,
+    "editorVersion": "drumford-spike"
+  }
+}

@@ -82,12 +82,9 @@ export function HighwayCanvas() {
     const container = containerRef.current
     if (!container) return
 
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (!entry) return
-      const { width, height } = entry.contentRect
+    const applySize = (width: number, height: number) => {
       const canvas = canvasRef.current
-      if (!canvas) return
+      if (!canvas || width === 0 || height === 0) return
       const dpr = window.devicePixelRatio || 1
       canvas.width = Math.round(width * dpr)
       canvas.height = Math.round(height * dpr)
@@ -95,9 +92,24 @@ export function HighwayCanvas() {
       canvas.style.height = `${height}px`
       sizeRef.current = { width, height }
       setReady(true)
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      const { width, height } = entry.contentRect
+      applySize(width, height)
     })
 
     observer.observe(container)
+    // Seed size synchronously on mount. The ResizeObserver's initial
+    // callback isn't delivered in every environment (some embedded/headless
+    // Chromium contexts skip it), so measure once here so the canvas paints
+    // without waiting for a resize event. useEffect runs after layout, so
+    // the bounding rect already reflects the real container box.
+    const r = container.getBoundingClientRect()
+    applySize(r.width, r.height)
+
     return () => observer.disconnect()
   }, [])
 
@@ -137,19 +149,24 @@ export function HighwayCanvas() {
     draw()
   }, isPlaying)
 
-  // Initial draw when canvas is ready
+  // Initial draw when canvas is ready.
+  // NOTE: draw() is called directly (not via requestAnimationFrame) so the
+  // first paint happens even when the page is backgrounded/hidden — browsers
+  // pause rAF for hidden pages, which would otherwise leave the canvas blank
+  // in headless capture environments.
   useEffect(() => {
     if (ready && !isPlaying) {
-      requestAnimationFrame(draw)
+      draw()
     }
   }, [ready, draw]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Redraw on seek while paused (subscribe to store directly, no React re-renders)
+  // Redraw on seek while paused (subscribe to store directly, no React re-renders).
+  // Direct draw() call (not rAF) for the same hidden-page reason as above.
   useEffect(() => {
     if (isPlaying) return
     const unsub = usePlayerStore.subscribe((state, prev) => {
       if (state.currentTime !== prev.currentTime) {
-        requestAnimationFrame(draw)
+        draw()
       }
     })
     return unsub
