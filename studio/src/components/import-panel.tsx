@@ -7,6 +7,7 @@ import { synthDemoBeatMidi } from '@studio/lib/demo-beat'
 import { CLASS_TO_NAME } from '@studio/lib/drum-map'
 import { laneOrder } from '@studio/lib/grid'
 import { useStudioStore } from '@studio/stores/studio-store'
+import { useStudioUi } from '@studio/stores/studio-ui-store'
 import { useEditorView } from '@studio/stores/editor-view-store'
 
 const KICK_CLASS = 'BP_Kick_C'
@@ -72,6 +73,9 @@ export function ImportPanel({
   const onFreshChart = useCallback(() => {
     useEditorView.getState().reset()
     useStudioStore.temporal.getState().clear()
+    // A freshly imported chart isn't backed by any saved draft yet, so the next
+    // "Save draft" should create a new draft rather than overwrite a prior one.
+    useStudioUi.getState().setCurrentDraftId(null)
   }, [])
 
   const convertAndLoad = useCallback(
