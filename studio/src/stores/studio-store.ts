@@ -24,6 +24,12 @@ export interface StudioState {
   setMeta: (patch: Partial<StudioMeta>) => void
   /** Append a note; returns its new id ('' when there is no chart). */
   addNote: (note: { time: number; instrumentClass: string; vel: number; duration?: number }) => string
+  /**
+   * Append several notes in ONE immutable `set` → a single undo entry.
+   * Returns the new ids in input order ([] when there is no chart). Used by
+   * paste so a multi-note paste is exactly one Ctrl+Z step.
+   */
+  addNotes: (notes: { time: number; instrumentClass: string; vel: number; duration?: number }[]) => string[]
   /** Shift `ids` in time by `dt`; if `dLaneClass` is set, also change their instrumentClass. */
   moveNotes: (ids: string[], delta: { dt: number; dLaneClass?: string }) => void
   /** Set velocity for `ids`, clamped to 1..127. */
@@ -62,6 +68,24 @@ export const useStudioStore = create<StudioState>()(
         if (duration !== undefined) note.duration = duration
         set({ chart: { ...chart, notes: [...chart.notes, note] } })
         return id
+      },
+
+      addNotes: (incoming) => {
+        const chart = get().chart
+        if (!chart) return []
+        const created: StudioNote[] = incoming.map((n) => {
+          const note: StudioNote = {
+            id: generateId(),
+            time: n.time,
+            instrumentClass: n.instrumentClass,
+            vel: clampVel(n.vel),
+          }
+          if (n.duration !== undefined) note.duration = n.duration
+          return note
+        })
+        // One immutable set → one zundo history entry for the whole batch.
+        set({ chart: { ...chart, notes: [...chart.notes, ...created] } })
+        return created.map((n) => n.id)
       },
 
       moveNotes: (ids, { dt, dLaneClass }) => {

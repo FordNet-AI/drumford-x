@@ -1,15 +1,46 @@
 import { useEffect, useRef } from 'react'
 import { ZoomIn, ZoomOut, ChevronUp, ChevronDown } from 'lucide-react'
 import type { SnapValue } from '@studio/types'
-import { editorYToTime } from '@studio/lib/grid'
+import { editorYToTime, snapTime } from '@studio/lib/grid'
 import { computeLayout } from '@studio/lib/editor-layout'
 import { useStudioStore } from '@studio/stores/studio-store'
 import { useEditorView } from '@studio/stores/editor-view-store'
+import { usePlaybackStore } from '@studio/stores/playback-store'
+import { copyNotesToClipboard, getClipboard, hasClipboard } from '@studio/lib/editor-clipboard'
 import { EditorCanvas } from './editor-canvas'
 
 const SNAP_OPTIONS: SnapValue[] = ['1/4', '1/8', '1/16', '1/8T']
 const ZOOM_STEP = 1.25
 const WHEEL_ZOOM_STEP = 1.1
+
+/** Snapshot the current selection into the editor clipboard (no undo entry). */
+function copySelection(): void {
+  const store = useStudioStore.getState()
+  const chart = store.chart
+  if (!chart) return
+  const selected = chart.notes.filter((n) => store.selection.includes(n.id))
+  copyNotesToClipboard(selected)
+}
+
+/**
+ * Paste the clipboard anchored at the current playhead time. Each note's
+ * relative offset is added to the anchor and snapped via the active `snap`, then
+ * the whole batch is inserted with `addNotes` (ONE undo step) and selected.
+ */
+function pasteAtPlayhead(): void {
+  const store = useStudioStore.getState()
+  const chart = store.chart
+  if (!chart || !hasClipboard()) return
+  const anchor = usePlaybackStore.getState().currentTime
+  const toAdd = getClipboard().map((c) => ({
+    time: snapTime(Math.max(0, anchor + c.dt), store.snap, chart.bpmEvents),
+    instrumentClass: c.instrumentClass,
+    vel: c.vel,
+    ...(c.duration !== undefined ? { duration: c.duration } : {}),
+  }))
+  const ids = store.addNotes(toAdd)
+  store.setSelection(ids)
+}
 
 /**
  * Editor wrapper: a thin toolbar (snap, zoom, scroll) above the piano-roll
@@ -72,6 +103,28 @@ export function EditorGrid() {
       if (mod && (e.key === 'y' || e.key === 'Y')) {
         e.preventDefault()
         useStudioStore.temporal.getState().redo()
+        return
+      }
+      // Copy / Cut / Paste (Ctrl or Cmd).
+      if (mod && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault()
+        copySelection()
+        return
+      }
+      if (mod && (e.key === 'x' || e.key === 'X')) {
+        // Cut = copy + delete the originals (one delete = one undo step).
+        const sel = useStudioStore.getState().selection
+        if (sel.length) {
+          e.preventDefault()
+          copySelection()
+          useStudioStore.getState().deleteNotes(sel)
+          useStudioStore.getState().clearSelection()
+        }
+        return
+      }
+      if (mod && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault()
+        pasteAtPlayhead()
         return
       }
       if (e.key === 'Escape') {
@@ -157,7 +210,7 @@ export function EditorGrid() {
         </div>
 
         <span className="ml-auto text-[11px] text-[#5a6173]">
-          click empty: add &middot; click note: select &middot; shift: multi &middot; drag: move/marquee &middot; ⌫ delete &middot; ⌘Z undo
+          click empty: add &middot; note: select &middot; shift: multi &middot; drag: move &middot; ruler: seek &middot; ribbon: velocity &middot; ⌘C/⌘V &middot; ⌘Z
         </span>
       </div>
 

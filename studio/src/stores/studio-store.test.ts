@@ -56,6 +56,42 @@ describe('studio-store: note edits', () => {
     expect(get().chart!.notes.find(n => n.id === id)!.time).toBe(2.0)
   })
 
+  it('addNotes appends N notes with fresh ids and returns them in order', () => {
+    const before = get().chart!.notes.length
+    const ids = get().addNotes([
+      { time: 2.0, instrumentClass: 'BP_Kick_C', vel: 90 },
+      { time: 2.5, instrumentClass: 'BP_Snare_C', vel: 110 },
+      { time: 3.0, instrumentClass: 'BP_HiHat_C', vel: 20 },
+    ])
+    expect(ids).toHaveLength(3)
+    expect(get().chart!.notes.length).toBe(before + 3)
+    // ids are unique and all present
+    expect(new Set(ids).size).toBe(3)
+    expect(ids.every((id) => get().chart!.notes.some((n) => n.id === id))).toBe(true)
+    // velocity is clamped on the way in
+    const third = get().chart!.notes.find((n) => n.id === ids[2])!
+    expect(third.vel).toBe(20)
+    expect(third.time).toBe(3.0)
+  })
+
+  it('addNotes is exactly ONE undo step for the whole batch', () => {
+    expect(temporal().pastStates.length).toBe(0)
+    get().addNotes([
+      { time: 2.0, instrumentClass: 'BP_Kick_C', vel: 90 },
+      { time: 2.5, instrumentClass: 'BP_Snare_C', vel: 110 },
+    ])
+    // one immutable set → one history entry, regardless of batch size
+    expect(temporal().pastStates.length).toBe(1)
+    const after = get().chart!.notes.length
+    temporal().undo()
+    expect(get().chart!.notes.length).toBe(after - 2)
+  })
+
+  it('addNotes is a no-op returning [] when chart is null', () => {
+    useStudioStore.setState({ chart: null })
+    expect(get().addNotes([{ time: 1, instrumentClass: 'BP_Kick_C', vel: 90 }])).toEqual([])
+  })
+
   it('moveNotes shifts time by dt and changes instrumentClass when dLaneClass is set', () => {
     get().moveNotes(['n1'], { dt: 0.25, dLaneClass: 'BP_Tom1_C' })
     const n1 = get().chart!.notes.find(n => n.id === 'n1')!
