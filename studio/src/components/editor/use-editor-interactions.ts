@@ -1,4 +1,10 @@
-import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  useCallback,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type MouseEvent as ReactMouseEvent,
+} from 'react'
 import { editorYToTime, snapTime } from '@studio/lib/grid'
 import {
   columnIndexAtX,
@@ -295,6 +301,31 @@ export function useEditorInteractions({ canvasRef, getLayout }: UseEditorInterac
     [canvasRef],
   )
 
+  // Double-click a note to delete it (one undo step). Hit-tests the same way as
+  // pointer-down; if a note is under the cursor it's removed and dropped from the
+  // selection. Double-clicking empty space does nothing here (the two single
+  // clicks add/select, and addNoteAt dedupes so no duplicate can stack).
+  const onDoubleClick = useCallback(
+    (e: ReactMouseEvent) => {
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const rect = canvas.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      const layout = getLayout()
+      const store = useStudioStore.getState()
+      const chart = store.chart
+      if (!chart || y < layout.headerH) return
+      const { viewStartTime, pxPerSec } = useEditorView.getState()
+      const hit = topNoteAt(x, y, chart.notes, layout, viewStartTime, pxPerSec)
+      if (!hit) return
+      store.deleteNotes([hit.id])
+      const sel = store.selection
+      if (sel.includes(hit.id)) store.setSelection(sel.filter((id) => id !== hit.id))
+    },
+    [canvasRef, getLayout],
+  )
+
   // Keep ref mirrors so pointerup reads the latest values synchronously.
   const dragPreviewRef = useRef<DragPreview | null>(null)
   dragPreviewRef.current = dragPreview
@@ -306,6 +337,7 @@ export function useEditorInteractions({ canvasRef, getLayout }: UseEditorInterac
     onPointerMove,
     onPointerUp,
     onPointerCancel,
+    onDoubleClick,
   }
 
   return { marquee, dragPreview, velPreview, handlers }
@@ -328,11 +360,25 @@ function addNoteAt(
   if (t < 0) return
   const snapped = snapTime(t, store.snap, chart.bpmEvents)
 
+  let instrumentClass: string
   if (isInKickGutter(layout, x)) {
-    store.addNote({ time: snapped, instrumentClass: 'BP_Kick_C', vel: 100 })
+    instrumentClass = 'BP_Kick_C'
+  } else {
+    const colIdx = columnIndexAtX(layout, x)
+    if (colIdx < 0) return
+    instrumentClass = layout.columns[colIdx]!.instrumentClass
+  }
+
+  // Dedupe: never stack a second identical hit (same lane + same snapped time).
+  // If one already exists there, select it instead of adding a duplicate. This
+  // also makes a stray double-click on empty space a no-op rather than two
+  // overlapping notes.
+  const existing = chart.notes.find(
+    (n) => n.instrumentClass === instrumentClass && Math.abs(n.time - snapped) < 1e-3,
+  )
+  if (existing) {
+    store.setSelection([existing.id])
     return
   }
-  const colIdx = columnIndexAtX(layout, x)
-  if (colIdx < 0) return
-  store.addNote({ time: snapped, instrumentClass: layout.columns[colIdx]!.instrumentClass, vel: 100 })
+  store.addNote({ time: snapped, instrumentClass, vel: 100 })
 }

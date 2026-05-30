@@ -210,7 +210,7 @@ export function EditorGrid() {
         </div>
 
         <span className="ml-auto text-[11px] text-[#5a6173]">
-          click empty: add &middot; note: select &middot; shift: multi &middot; drag: move &middot; ruler: seek &middot; ribbon: velocity &middot; ⌘C/⌘V &middot; ⌘Z
+          click empty: add &middot; note: select &middot; dbl-click: delete &middot; shift: multi &middot; drag: move &middot; ruler: seek &middot; ribbon: velocity &middot; ⌘C/⌘V &middot; ⌘Z
         </span>
       </div>
 
