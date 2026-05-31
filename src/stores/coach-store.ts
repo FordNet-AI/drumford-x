@@ -67,6 +67,12 @@ export interface CoachPrefs {
   voiceEnabled: boolean
   /** On-screen banner cues on/off. Gated by coachEnabled. */
   bannerEnabled: boolean
+  /**
+   * "Pro tip" at song start on/off. When on (and coachEnabled), the chart
+   * author's description — or an auto-generated summary — is shown/spoken once
+   * each time a song is loaded and played from the top. Gated by coachEnabled.
+   */
+  proTipEnabled: boolean
   /** Per-event cue toggles (tempo, meter, fill, double-kick, section, re-entry). */
   eventCues: EventCues
 }
@@ -89,6 +95,7 @@ const DEFAULT_COACH_PREFS: CoachPrefs = {
   coachEnabled: true,
   voiceEnabled: true,
   bannerEnabled: true,
+  proTipEnabled: true,
   eventCues: { ...DEFAULT_EVENT_CUES },
 }
 
@@ -176,6 +183,7 @@ function loadCoachPrefs(): CoachPrefs {
       coachEnabled: clampBool(parsed.coachEnabled, DEFAULT_COACH_PREFS.coachEnabled),
       voiceEnabled: clampBool(parsed.voiceEnabled, DEFAULT_COACH_PREFS.voiceEnabled),
       bannerEnabled: clampBool(parsed.bannerEnabled, DEFAULT_COACH_PREFS.bannerEnabled),
+      proTipEnabled: clampBool(parsed.proTipEnabled, DEFAULT_COACH_PREFS.proTipEnabled),
       eventCues: clampEventCues(parsed.eventCues),
     }
   } catch (err) {
@@ -210,6 +218,8 @@ interface CoachState extends CoachPrefs {
   setVoiceEnabled: (on: boolean) => void
   /** Toggle on-screen banner cues. Persists immediately. */
   setBannerEnabled: (on: boolean) => void
+  /** Toggle the pro-tip-at-song-start. Persists immediately. */
+  setProTipEnabled: (on: boolean) => void
   /** Toggle a single per-event cue (tempo/meter/fill/…). Persists immediately. */
   setEventCue: (key: EventCueKey, on: boolean) => void
 }
@@ -271,6 +281,13 @@ export const useCoachStore = create<CoachState>()((set, get) => ({
     const next: CoachPrefs = { ...get(), bannerEnabled }
     saveCoachPrefs(next)
     set({ bannerEnabled })
+  },
+
+  setProTipEnabled: (on) => {
+    const proTipEnabled = !!on
+    const next: CoachPrefs = { ...get(), proTipEnabled }
+    saveCoachPrefs(next)
+    set({ proTipEnabled })
   },
 
   setEventCue: (key, on) => {

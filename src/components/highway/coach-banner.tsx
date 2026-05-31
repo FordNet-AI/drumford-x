@@ -13,6 +13,7 @@ const KIND_COLOR: Record<string, string> = {
   doubleKick: '#ff66aa',
   section: '#88ffcc',
   reentry: '#00e5ff',
+  protip: '#ffcc00', // song-start pro tip — yellow (coaching voice)
 }
 const DEFAULT_COLOR = '#00e5ff'
 
@@ -38,10 +39,19 @@ export function CoachBanner() {
 
   const color = (activeBanner.kind && KIND_COLOR[activeBanner.kind]) || DEFAULT_COLOR
 
+  // The pro tip is a full sentence, not a short cue label — render it as a
+  // wider, multiline rounded panel that wraps and centers, rather than a
+  // single-line pill that would overflow the highway. All other kinds keep the
+  // compact pill (nowrap, wide letter-spacing) they were designed for.
+  const isProTip = activeBanner.kind === 'protip'
+  const className = isProTip
+    ? 'max-w-[80%] whitespace-pre-line rounded-2xl border bg-[#050508]/90 px-5 py-3 text-center font-mono text-sm font-medium leading-snug tracking-normal backdrop-blur-sm'
+    : 'whitespace-nowrap rounded-full border bg-[#050508]/85 px-5 py-2 font-mono text-base font-semibold tracking-[2px] backdrop-blur-sm'
+
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-4 z-20 flex justify-center">
+    <div className="pointer-events-none absolute inset-x-0 top-4 z-20 flex justify-center px-4">
       <div
-        className="rounded-full border bg-[#050508]/85 px-5 py-2 font-mono text-base font-semibold tracking-[2px] backdrop-blur-sm"
+        className={className}
         style={{
           color,
           borderColor: `${color}66`,

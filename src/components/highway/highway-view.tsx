@@ -7,10 +7,17 @@ import { AudioEngine } from '@/lib/audio-engine'
 import { Metronome } from '@/lib/metronome'
 import { getStoredSong } from '@/lib/song-storage'
 import { useCueScheduler } from '@/lib/coach/use-cue-scheduler'
+import { useCoachRuntime } from '@/stores/coach-runtime'
+import { speak } from '@/lib/coach/speech'
+import { generateProTip, sanitizeDescription } from '@/lib/coach/pro-tip'
 import { HighwayCanvas } from './highway-canvas'
 import { CoachBanner } from './coach-banner'
 import { TransportBar } from '../controls/transport-bar'
 import { QuickKitPopover } from '../setup/quick-kit-popover'
+
+/** How long the song-start pro-tip banner lingers (ms). Longer than a cue
+ *  blip because it's a full sentence the user needs time to read. */
+const PRO_TIP_BANNER_MS = 6000
 
 export function HighwayView() {
   const activeSong = usePlayerStore((s) => s.activeSong)
@@ -37,6 +44,11 @@ export function HighwayView() {
   const engineRef = useRef<AudioEngine | null>(null)
   const metroRef = useRef<Metronome | null>(null)
   const prevPlayingRef = useRef(false)
+  // Pro tip: fired ONCE per song activation (reset when activeSong changes, in
+  // the engine-setup effect below). So replaying from the top mid-session won't
+  // re-nag — the tip only appears the first time you press play after loading a
+  // chart. It can overlap the count-in pre-roll, which reads naturally.
+  const proTipShownRef = useRef(false)
   // Count-in: a pending lead-in is running. While true, the engine has NOT
   // started yet and the highway stays parked at currentTime 0 — the only
   // sound is the metronome's pre-scheduled count-in clicks. The timer fires
@@ -72,6 +84,8 @@ export function HighwayView() {
     // play/pause flip as a fresh transition rather than a stale continuation
     // from the previous song.
     prevPlayingRef.current = false
+    // New song activation — re-arm the once-per-load pro tip.
+    proTipShownRef.current = false
     // Cancel any count-in that was pending for the previous song.
     if (countInTimerRef.current !== null) {
       clearTimeout(countInTimerRef.current)
@@ -142,6 +156,28 @@ export function HighwayView() {
 
       // Count-in only at the very top of the song, with the metronome on.
       const atStart = currentTime <= 0.01
+
+      // Pro tip — show/speak once per song activation when starting from the
+      // top. Uses the author's description verbatim if present, else an
+      // auto-generated summary. Fires here (before the count-in branch) so it
+      // can overlap the count-in pre-roll, which reads naturally. Gated by the
+      // master + pro-tip toggles; banner/voice each honor their own toggle.
+      if (atStart && !proTipShownRef.current && song) {
+        const coach = useCoachStore.getState()
+        if (coach.coachEnabled && coach.proTipEnabled) {
+          proTipShownRef.current = true
+          // Prefer the author's blurb (sanitized — some charts store rich-text
+          // HTML), else an auto-generated summary.
+          const tip = sanitizeDescription(song.description) || generateProTip(song)
+          if (tip) {
+            if (coach.bannerEnabled) {
+              useCoachRuntime.getState().showBanner(tip, PRO_TIP_BANNER_MS, 'protip')
+            }
+            if (coach.voiceEnabled) speak(tip)
+          }
+        }
+      }
+
       const useCountIn = metro != null && metroOn && countInBars > 0 && atStart
 
       if (useCountIn) {

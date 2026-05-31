@@ -99,6 +99,8 @@ export function CoachControl() {
   const setVoiceEnabled = useCoachStore((s) => s.setVoiceEnabled)
   const bannerEnabled = useCoachStore((s) => s.bannerEnabled)
   const setBannerEnabled = useCoachStore((s) => s.setBannerEnabled)
+  const proTipEnabled = useCoachStore((s) => s.proTipEnabled)
+  const setProTipEnabled = useCoachStore((s) => s.setProTipEnabled)
   const eventCues = useCoachStore((s) => s.eventCues)
   const setEventCue = useCoachStore((s) => s.setEventCue)
 
@@ -172,6 +174,12 @@ export function CoachControl() {
             label="Banner"
             checked={bannerEnabled}
             onChange={setBannerEnabled}
+            disabled={!coachEnabled}
+          />
+          <ToggleRow
+            label="Pro tip"
+            checked={proTipEnabled}
+            onChange={setProTipEnabled}
             disabled={!coachEnabled}
           />
 
