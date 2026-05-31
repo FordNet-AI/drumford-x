@@ -188,14 +188,23 @@ export function useCueScheduler(): void {
   // replay without a reload).
   const cues = useMemo<CueEvent[]>(() => {
     if (!activeSong) return []
-    const auto = analyzeCues(activeSong)
-    const user = userCuesToCueEvents(userCues, activeSong.bpmEvents)
-    // Merge + re-sort by fireAt. User cues are EXEMPT from the analysis-time
-    // priority dedup (explicit drummer intent — never dropped); they coexist
-    // with any auto cue at the same spot, just like reentry cues.
-    const merged = [...auto, ...user]
-    merged.sort((a, b) => a.fireAt - b.fireAt)
-    return merged
+    try {
+      const auto = analyzeCues(activeSong)
+      const user = userCuesToCueEvents(userCues, activeSong.bpmEvents)
+      // Merge + re-sort by fireAt. User cues are EXEMPT from the analysis-time
+      // priority dedup (explicit drummer intent — never dropped); they coexist
+      // with any auto cue at the same spot, just like reentry cues.
+      const merged = [...auto, ...user]
+      merged.sort((a, b) => a.fireAt - b.fireAt)
+      return merged
+    } catch (err) {
+      // Coach Mode is an ENHANCEMENT — it must never crash the player. If cue
+      // analysis throws on some chart's data, degrade to no cues (and log the
+      // exact error + offending song so the root cause is fixable) rather than
+      // letting the throw unmount the highway into a black screen.
+      console.error('[coach] cue analysis failed — coach cues disabled for this song:', activeSong?.title, err)
+      return []
+    }
   }, [activeSong, userCues])
 
   // Which single-fire cue indices have already fired this pass.
@@ -235,10 +244,13 @@ export function useCueScheduler(): void {
     if (!coachEnabled) return
     if (cues.length === 0) return
 
-    // Read live toggle state (avoids re-subscribing the whole hook to every
-    // toggle; firing is gated at the moment a cue would fire).
-    const coach = useCoachStore.getState()
-    const runtime = useCoachRuntime.getState()
+    // Everything below is wrapped so a runtime throw (speech engine, banner,
+    // countdown math) can never crash playback — at worst this frame is skipped.
+    try {
+      // Read live toggle state (avoids re-subscribing the whole hook to every
+      // toggle; firing is gated at the moment a cue would fire).
+      const coach = useCoachStore.getState()
+      const runtime = useCoachRuntime.getState()
 
     // --- Single-fire cues (tempo/meter/fill/doubleKick/section) -------------
     // Sorted by fireAt; once we hit a future one the rest are future too.
@@ -317,6 +329,9 @@ export function useCueScheduler(): void {
       // Count beats are intentionally ~1 beat apart and bypass the min-gap.
       for (const word of plan.speaks) speak(word)
       if (plan.goFired) reentryGoRef.current.add(i)
+    }
+    } catch (err) {
+      console.error('[coach] cue scheduler tick failed — skipping this frame:', err)
     }
   }, [currentTime, coachEnabled, cues])
 }

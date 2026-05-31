@@ -163,18 +163,25 @@ export function HighwayView() {
       // can overlap the count-in pre-roll, which reads naturally. Gated by the
       // master + pro-tip toggles; banner/voice each honor their own toggle.
       if (atStart && !proTipShownRef.current && song) {
-        const coach = useCoachStore.getState()
-        if (coach.coachEnabled && coach.proTipEnabled) {
-          proTipShownRef.current = true
-          // Prefer the author's blurb (sanitized — some charts store rich-text
-          // HTML), else an auto-generated summary.
-          const tip = sanitizeDescription(song.description) || generateProTip(song)
-          if (tip) {
-            if (coach.bannerEnabled) {
-              useCoachRuntime.getState().showBanner(tip, PRO_TIP_BANNER_MS, 'protip')
+        // Pro tip is an enhancement — never let it crash play-from-0.
+        // generateProTip() runs cue analysis under the hood, so guard it the
+        // same way the scheduler guards analyzeCues.
+        try {
+          const coach = useCoachStore.getState()
+          if (coach.coachEnabled && coach.proTipEnabled) {
+            proTipShownRef.current = true
+            // Prefer the author's blurb (sanitized — some charts store rich-text
+            // HTML), else an auto-generated summary.
+            const tip = sanitizeDescription(song.description) || generateProTip(song)
+            if (tip) {
+              if (coach.bannerEnabled) {
+                useCoachRuntime.getState().showBanner(tip, PRO_TIP_BANNER_MS, 'protip')
+              }
+              if (coach.voiceEnabled) speak(tip)
             }
-            if (coach.voiceEnabled) speak(tip)
           }
+        } catch (err) {
+          console.error('[coach] pro-tip generation failed — skipping tip:', err)
         }
       }
 

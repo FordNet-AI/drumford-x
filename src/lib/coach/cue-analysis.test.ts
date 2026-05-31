@@ -448,3 +448,74 @@ describe('analyzeCues', () => {
     }
   })
 })
+
+// ---------------------------------------------------------------------------
+// Real-world data robustness (the "black screen on load" regression).
+//
+// Every fixture above goes through makeSong(), which TIME-SORTS notes. Real
+// .rlrr charts don't: they store events grouped BY INSTRUMENT (all kicks, then
+// all snares, …), so the flattened notes array is NOT globally time-ordered,
+// and bad exports occasionally include glitch notes with non-finite or absurd
+// times. Those shapes used to make analyzeCues produce garbage, throw, or — via
+// detectFills' unbounded scan over an Infinity/huge span — HANG the render into
+// a black screen. These tests feed those shapes directly (no sort).
+// ---------------------------------------------------------------------------
+describe('analyzeCues — real-world data robustness', () => {
+  /** A Song with notes passed through VERBATIM (skips makeSong's time-sort). */
+  function rawSong(notes: HighwayNote[], bpmEvents?: RlrrBpmEvent[]): Song {
+    const base = makeSong({ bpmEvents, duration: 200 })
+    return { ...base, notes }
+  }
+
+  it('does not throw on instrument-grouped (non-time-sorted) notes', () => {
+    const kicks = Array.from({ length: 32 }, (_, i) => note(i * 0.5, CLASS.kick))
+    const snares = Array.from({ length: 32 }, (_, i) => note(i * 0.5 + 0.25, CLASS.snare))
+    const toms = [note(8, CLASS.tom1), note(8.1, CLASS.tom2), note(8.2, CLASS.floorTom)]
+    // Grouped by instrument, deliberately NOT sorted by time.
+    const song = rawSong([...kicks, ...snares, ...toms])
+    expect(() => analyzeCues(song)).not.toThrow()
+    // Output is always fireAt-sorted regardless of input order.
+    const cues = analyzeCues(song)
+    for (let i = 1; i < cues.length; i++) {
+      expect(cues[i]!.fireAt).toBeGreaterThanOrEqual(cues[i - 1]!.fireAt)
+    }
+  })
+
+  it('does not hang or throw when glitch notes have non-finite times', () => {
+    // A non-finite time used to make detectFills' scan span Infinity → an
+    // infinite loop (a freeze no try/catch can catch). They must be dropped.
+    // vitest's per-test timeout fails this if it ever hangs again.
+    const song = rawSong([
+      ...steadyGroove(8, 120),
+      note(Infinity, CLASS.crash),
+      note(NaN, CLASS.kick),
+      note(-Infinity, CLASS.snare),
+    ])
+    expect(() => analyzeCues(song)).not.toThrow()
+  })
+
+  it('completes (bounded scan) even with a huge finite outlier note time', () => {
+    // One stray note at 1e7s would, unbounded, drive ~80M window iterations.
+    // The scan cap keeps this fast; the test passing at all proves it returns.
+    const song = rawSong([...steadyGroove(8, 120), note(1e7, CLASS.crash)])
+    expect(() => analyzeCues(song)).not.toThrow()
+  })
+
+  it('still detects a tom fill when the roll notes precede the groove (unsorted)', () => {
+    const roll = [
+      note(4, CLASS.tom1),
+      note(4.1, CLASS.tom2),
+      note(4.2, CLASS.floorTom),
+      note(4.3, CLASS.tom1),
+      note(4.4, CLASS.tom2),
+      note(4.5, CLASS.floorTom),
+    ]
+    // Roll listed BEFORE the groove — internal sort must still place it correctly.
+    const song = rawSong([...roll, ...steadyGroove(8, 120)])
+    expect(cuesOfType(analyzeCues(song), 'fill').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('returns no cues (not a throw) for an empty chart', () => {
+    expect(analyzeCues(rawSong([]))).toEqual([])
+  })
+})

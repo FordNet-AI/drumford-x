@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
+import { ErrorBoundary } from './components/error-boundary'
 
 // Prevent browser from navigating when files/folders are dropped anywhere on the page.
 // Without this, dropping a folder causes the browser to try to open/display it,
@@ -11,6 +12,8 @@ window.addEventListener('drop', (e) => e.preventDefault())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 )

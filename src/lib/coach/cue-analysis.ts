@@ -268,7 +268,13 @@ function detectFills(song: Song): CueEvent[] {
   // We scan note indices with a moving [lo, hi) range to keep this O(n).
   let lo = 0
   let hi = 0
-  for (let start = firstT; start <= lastT; start += FILL_STEP_SEC) {
+  // Bound the synchronous scan. Non-finite times are filtered upstream, but a
+  // single large-but-finite outlier (bad export) could still spin this loop
+  // millions of times and freeze the render into a black screen. Cap the span;
+  // a song longer than the cap simply stops getting fill cues past it.
+  const MAX_FILL_WINDOWS = 8000 // ~16.6 min at the 0.125s step
+  const scanEnd = Math.min(lastT, firstT + MAX_FILL_WINDOWS * FILL_STEP_SEC)
+  for (let start = firstT; start <= scanEnd; start += FILL_STEP_SEC) {
     const end = start + FILL_WINDOW_SEC
     while (lo < notes.length && notes[lo]!.time < start) lo++
     while (hi < notes.length && notes[hi]!.time < end) hi++
@@ -500,19 +506,32 @@ function dedupBySpacing(cues: CueEvent[]): CueEvent[] {
 
 /** Analyze a song into a list of coach cues, sorted by fireAt ascending. */
 export function analyzeCues(song: Song): CueEvent[] {
+  // Defensive normalization (the detectors below assume ascending, finite note
+  // times):
+  //  - Real .rlrr charts store events grouped BY INSTRUMENT, so the flattened
+  //    `notes` array is NOT globally time-sorted. The sliding-window + re-entry
+  //    gap math depend on time order, so sort a copy.
+  //  - A glitch note with a non-finite time (bad export) would make detectFills'
+  //    scan span Infinity and spin forever (a freeze, not a throw — no try/catch
+  //    can catch it), so drop non-finite times here.
+  const cleanNotes = song.notes
+    .filter((n) => Number.isFinite(n.time))
+    .sort((a, b) => a.time - b.time)
+  const safeSong: Song = { ...song, notes: cleanNotes }
+
   // Single-fire cues participate in the priority spacing/dedup.
   const dedupable = [
-    ...detectTempoAndMeter(song),
-    ...detectFills(song),
-    ...detectDoubleKick(song),
-    ...detectSections(song),
+    ...detectTempoAndMeter(safeSong),
+    ...detectFills(safeSong),
+    ...detectDoubleKick(safeSong),
+    ...detectSections(safeSong),
   ]
   const deduped = dedupBySpacing(dedupable)
 
   // Re-entry count-ins are atomic multi-beat sequences, NOT single blips — they
   // bypass the spacing dedup entirely so they neither collapse nor are
   // collapsed by a nearby single-fire cue. They're merged back in afterward.
-  const reentries = detectReentries(song)
+  const reentries = detectReentries(safeSong)
 
   const all = [...deduped, ...reentries]
   all.sort((a, b) => a.fireAt - b.fireAt)
