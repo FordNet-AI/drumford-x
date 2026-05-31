@@ -13,7 +13,7 @@ import { getCurrentBpm, getCurrentTimeSig } from '@/components/highway/highway-r
  * memoized per song. The scheduler (use-cue-scheduler) consumes the output.
  */
 
-export type CueType = 'tempo' | 'meter' | 'fill' | 'doubleKick'
+export type CueType = 'tempo' | 'meter' | 'fill' | 'doubleKick' | 'section' | 'reentry'
 
 export interface CueEvent {
   time: number // song time of the EVENT
@@ -21,6 +21,13 @@ export interface CueEvent {
   type: CueType
   text: string // short spoken/banner phrase, e.g. 'Speeding up, 140'
   banner: string // short banner label, e.g. '⚡ 140 BPM' (can equal text)
+  /**
+   * For 'reentry' cues only: the absolute song times of the count-in beats
+   * leading into `time`, ascending (e.g. 4/4 → [t-4β, t-3β, t-2β, t-1β]). The
+   * scheduler fires one number per beat, spoken DESCENDING ("4,3,2,1") so the
+   * drummer comes back in on `time`. Undefined for all other cue types.
+   */
+  countdown?: number[]
 }
 
 // ---------------------------------------------------------------------------
@@ -63,6 +70,23 @@ const DK_MIN_RUN = 4
 /** Max inter-onset interval (seconds) between kicks to be "sustained fast". */
 const DK_MAX_IOI_SEC = 0.18
 
+/**
+ * Minimum silence (in BARS at the local tempo/meter) before the next drum hit
+ * for that hit to be a "re-entry" worth counting the drummer back in. ~2 bars
+ * of rest (8 beats in 4/4) reliably reads as "the drums dropped out," not a
+ * one-beat breath. Measured between consecutive notes; the first note's gap is
+ * measured from song start (t=0).
+ */
+const REENTRY_MIN_GAP_BARS = 2
+/**
+ * Hard cap on how many count beats lead into a re-entry, so a long/odd meter
+ * (e.g. 12/8) doesn't spawn a 12-number countdown. The count uses
+ * min(beatsPerMeasure, this) of the beats immediately before the hit.
+ */
+const REENTRY_MAX_COUNT_BEATS = 8
+/** Float tolerance when comparing a measured gap to the bar-based threshold. */
+const REENTRY_GAP_EPSILON_SEC = 1e-3
+
 /** Lead time = 2 bars at the local tempo/meter, clamped to this range (sec). */
 const LEAD_BARS = 2
 const LEAD_MIN_SEC = 1.5
@@ -71,12 +95,20 @@ const LEAD_MAX_SEC = 6
 /** Two cues whose fireAt fall within this window (sec) collide → keep one. */
 const DEDUP_WINDOW_SEC = 1.2
 
-/** Higher number = higher priority. tempo/meter > doubleKick > fill. */
+/**
+ * Higher number = higher priority for the spacing-dedup.
+ * tempo/meter > section > doubleKick > fill.
+ *
+ * 'reentry' is EXEMPT from dedup (it's an atomic multi-beat countdown, not a
+ * single blip) so its value here is nominal and never actually consulted.
+ */
 const PRIORITY: Record<CueType, number> = {
-  tempo: 3,
-  meter: 3,
+  tempo: 4,
+  meter: 4,
+  section: 3,
   doubleKick: 2,
   fill: 1,
+  reentry: 0,
 }
 
 // ---------------------------------------------------------------------------
@@ -336,6 +368,81 @@ function detectDoubleKick(song: Song): CueEvent[] {
   return out
 }
 
+/**
+ * section cues from Song.sections (parsed from .rlrr bookmarks). One cue per
+ * section at its `time`, lead ~2 bars (via leadSecondsAt), text + banner = the
+ * label. Subject to the normal spacing/dedup as a single-fire cue.
+ */
+function detectSections(song: Song): CueEvent[] {
+  const out: CueEvent[] = []
+  const sections = song.sections
+  if (!sections || sections.length === 0) return out
+  for (const s of sections) {
+    if (typeof s.time !== 'number' || !Number.isFinite(s.time)) continue
+    const label = s.label && s.label.trim() ? s.label.trim() : 'Section'
+    out.push(makeCue(s.time, 'section', label, label, song.bpmEvents))
+  }
+  return out
+}
+
+/**
+ * Re-entry count-ins.
+ *
+ * Walk the sorted notes; a re-entry is a note whose gap from the previous note
+ * (or from song start, t=0, for the first note) is >= REENTRY_MIN_GAP_BARS bars
+ * at the LOCAL tempo/meter — i.e. the drums dropped out for ~2 bars. For each,
+ * build a 'reentry' cue whose `countdown` is the absolute times of the last
+ * min(beatsPerMeasure, REENTRY_MAX_COUNT_BEATS) beats before the hit (so the
+ * scheduler can tick "4,3,2,1" on the beat into the re-entry).
+ *
+ * `time` = the re-entry hit; `fireAt` = the first count beat. Count beats are
+ * clamped to >= 0 (a re-entry that qualifies is always far enough from 0 that
+ * this is a no-op, but it keeps fireAt non-negative defensively).
+ */
+function detectReentries(song: Song): CueEvent[] {
+  const out: CueEvent[] = []
+  const notes = song.notes
+  if (notes.length === 0) return out
+
+  let prevTime = 0 // song start — the first note's silence is measured from here
+  for (let i = 0; i < notes.length; i++) {
+    const t = notes[i]!.time
+    const gap = t - prevTime
+
+    // Threshold = N bars at the tempo/meter in effect at the re-entry hit.
+    const bpm = getCurrentBpm(t, song.bpmEvents)
+    const sig = getCurrentTimeSig(t, song.bpmEvents)
+    const beatsPerMeasure = sig[0] > 0 ? sig[0] : 4
+    const safeBpm = bpm > 0 ? bpm : 120
+    const beatDur = 60 / safeBpm
+    const minGap = REENTRY_MIN_GAP_BARS * beatsPerMeasure * beatDur
+
+    if (gap + REENTRY_GAP_EPSILON_SEC >= minGap) {
+      const countBeats = Math.min(beatsPerMeasure, REENTRY_MAX_COUNT_BEATS)
+      const countdown: number[] = []
+      for (let k = countBeats; k >= 1; k--) {
+        const beatTime = t - k * beatDur
+        if (beatTime >= 0) countdown.push(beatTime)
+      }
+      // Only emit if we actually have count beats to tick (we always will for a
+      // qualifying gap, but guard against degenerate tempos).
+      if (countdown.length > 0) {
+        out.push({
+          time: t,
+          fireAt: countdown[0]!,
+          type: 'reentry',
+          text: 'Coming back in',
+          banner: 'Coming back in',
+          countdown,
+        })
+      }
+    }
+
+    prevTime = t
+  }
+  return out
+}
+
 // ---------------------------------------------------------------------------
 // Dedup / spacing
 // ---------------------------------------------------------------------------
@@ -372,12 +479,21 @@ function dedupBySpacing(cues: CueEvent[]): CueEvent[] {
 
 /** Analyze a song into a list of coach cues, sorted by fireAt ascending. */
 export function analyzeCues(song: Song): CueEvent[] {
-  const all = [
+  // Single-fire cues participate in the priority spacing/dedup.
+  const dedupable = [
     ...detectTempoAndMeter(song),
     ...detectFills(song),
     ...detectDoubleKick(song),
+    ...detectSections(song),
   ]
-  const deduped = dedupBySpacing(all)
-  deduped.sort((a, b) => a.fireAt - b.fireAt)
-  return deduped
+  const deduped = dedupBySpacing(dedupable)
+
+  // Re-entry count-ins are atomic multi-beat sequences, NOT single blips — they
+  // bypass the spacing dedup entirely so they neither collapse nor are
+  // collapsed by a nearby single-fire cue. They're merged back in afterward.
+  const reentries = detectReentries(song)
+
+  const all = [...deduped, ...reentries]
+  all.sort((a, b) => a.fireAt - b.fireAt)
+  return all
 }

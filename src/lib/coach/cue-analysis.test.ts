@@ -27,6 +27,7 @@ function makeSong(partial: {
   notes?: HighwayNote[]
   bpmEvents?: RlrrBpmEvent[]
   duration?: number
+  sections?: { time: number; label: string }[]
 }): Song {
   const notes = (partial.notes ?? []).slice().sort((a, b) => a.time - b.time)
   const bpmEvents = partial.bpmEvents ?? [{ bpm: 120, time: 0, timeSignature: [4, 4] }]
@@ -44,6 +45,7 @@ function makeSong(partial: {
     folderName: 'test',
     notes,
     bpmEvents,
+    sections: partial.sections,
     ghostNoteThreshold: 0.3,
     accentNoteThreshold: 0.85,
     calibrationOffset: 0,
@@ -304,5 +306,145 @@ describe('analyzeCues', () => {
 
   it('handles an empty / note-free song without throwing', () => {
     expect(analyzeCues(makeSong({}))).toEqual([])
+  })
+
+  // -------------------------------------------------------------------------
+  // Section cues (from .rlrr bookmarks → Song.sections)
+  // -------------------------------------------------------------------------
+
+  it('emits a section cue at the section time with the label as text + banner', () => {
+    const song = makeSong({
+      notes: steadyGroove(24, 120),
+      sections: [{ time: 30, label: 'Chorus' }],
+      duration: 60,
+    })
+    const sections = cuesOfType(analyzeCues(song), 'section')
+    expect(sections.length).toBe(1)
+    const c = sections[0]!
+    expect(Math.abs(c.time - 30)).toBeLessThan(0.001)
+    expect(c.text).toBe('Chorus')
+    expect(c.banner).toBe('Chorus')
+    // Lead time ~2 bars before the boundary.
+    expect(c.fireAt).toBeLessThan(30)
+    expect(c.fireAt).toBeGreaterThanOrEqual(0)
+  })
+
+  it('emits one section cue per bookmark', () => {
+    const song = makeSong({
+      notes: steadyGroove(40, 120),
+      sections: [
+        { time: 16, label: 'Verse' },
+        { time: 40, label: 'Chorus' },
+        { time: 64, label: 'Bridge' },
+      ],
+      duration: 90,
+    })
+    const sections = cuesOfType(analyzeCues(song), 'section')
+    expect(sections.length).toBe(3)
+    expect(sections.map((s) => s.banner).sort()).toEqual(['Bridge', 'Chorus', 'Verse'])
+  })
+
+  it('emits no section cues when the song has no sections', () => {
+    const song = makeSong({ notes: steadyGroove(24, 120), duration: 50 })
+    expect(cuesOfType(analyzeCues(song), 'section').length).toBe(0)
+  })
+
+  // -------------------------------------------------------------------------
+  // Re-entry count-in (the headline)
+  // -------------------------------------------------------------------------
+
+  it('emits exactly one reentry cue after a >= 2-bar drum gap, with the right countdown', () => {
+    const bpm = 120
+    const beat = 60 / bpm // 0.5s
+    // Two bars of groove starting near t=0 (first note ~0, so no from-start reentry),
+    // a long silence (4 bars = 8s >> 2-bar threshold of 4s), then the re-entry hit.
+    const intro = steadyGroove(2, bpm, 0) // notes from 0..~3.5s
+    const reentryTime = 12 // gap from last intro note (~3.75s) is ~8s ≥ 4s
+    const after = steadyGroove(2, bpm, reentryTime)
+    const song = makeSong({ notes: [...intro, ...after], duration: 20 })
+
+    const reentries = cuesOfType(analyzeCues(song), 'reentry')
+    expect(reentries.length).toBe(1)
+    const c = reentries[0]!
+    // time = the re-entry hit.
+    expect(Math.abs(c.time - reentryTime)).toBeLessThan(0.001)
+    // countdown = last bar of beats (4/4 → 4 beats) leading into the hit.
+    expect(c.countdown).toBeDefined()
+    expect(c.countdown!.length).toBe(4)
+    const expected = [
+      reentryTime - 4 * beat,
+      reentryTime - 3 * beat,
+      reentryTime - 2 * beat,
+      reentryTime - 1 * beat,
+    ]
+    c.countdown!.forEach((t, i) => expect(Math.abs(t - expected[i]!)).toBeLessThan(1e-6))
+    // fireAt = first count beat.
+    expect(Math.abs(c.fireAt - expected[0]!)).toBeLessThan(1e-6)
+    // Counts ascend in time (numbers spoken descend 4,3,2,1).
+    for (let i = 1; i < c.countdown!.length; i++) {
+      expect(c.countdown![i]!).toBeGreaterThan(c.countdown![i - 1]!)
+    }
+  })
+
+  it('does NOT emit a reentry cue when there are only small rests (< 2 bars)', () => {
+    // Steady groove the whole way — max gap is an 8th note, far under threshold.
+    const song = makeSong({ notes: steadyGroove(24, 120), duration: 50 })
+    expect(cuesOfType(analyzeCues(song), 'reentry').length).toBe(0)
+  })
+
+  it('caps the countdown at min(beatsPerMeasure, 8) beats in long meters', () => {
+    // 12/8 feel modeled as 12 beats/bar — countdown must cap at 8, not 12.
+    const bpm = 120
+    const beat = 60 / bpm
+    const reentryTime = 20
+    const song = makeSong({
+      notes: [note(2, CLASS.kick), note(reentryTime, CLASS.snare)],
+      bpmEvents: [{ bpm, time: 0, timeSignature: [12, 8] }],
+      duration: 30,
+    })
+    const reentries = cuesOfType(analyzeCues(song), 'reentry')
+    expect(reentries.length).toBeGreaterThanOrEqual(1)
+    const c = reentries.find((r) => Math.abs(r.time - reentryTime) < 0.001)!
+    expect(c).toBeDefined()
+    expect(c.countdown!.length).toBe(8)
+    // Last count beat is exactly one beat before the hit.
+    const last = c.countdown![c.countdown!.length - 1]!
+    expect(Math.abs(last - (reentryTime - beat))).toBeLessThan(1e-6)
+  })
+
+  it('does not let a reentry cue suppress a nearby tempo/meter cue (exempt from dedup)', () => {
+    // A reentry whose first count beat lands right at a meter change. Both must
+    // survive — the reentry is an atomic multi-beat unit, not a single blip.
+    const bpm = 120
+    const beat = 60 / bpm
+    const reentryTime = 16
+    // meter change exactly at the reentry's first count beat (t = reentryTime - 4β = 14)
+    const meterTime = reentryTime - 4 * beat
+    const song = makeSong({
+      notes: [note(2, CLASS.kick), note(reentryTime, CLASS.snare)],
+      bpmEvents: [
+        { bpm, time: 0, timeSignature: [4, 4] },
+        { bpm, time: meterTime, timeSignature: [7, 8] },
+      ],
+      duration: 30,
+    })
+    const cues = analyzeCues(song)
+    expect(cuesOfType(cues, 'reentry').length).toBe(1)
+    // The meter cue at meterTime is NOT swallowed by the reentry.
+    expect(cuesOfType(cues, 'meter').length).toBe(1)
+  })
+
+  it('keeps reentry cues in the fireAt-sorted output', () => {
+    const bpm = 120
+    const song = makeSong({
+      notes: [note(2, CLASS.kick), note(16, CLASS.snare), note(16.5, CLASS.kick)],
+      bpmEvents: [{ bpm, time: 0, timeSignature: [4, 4] }],
+      duration: 25,
+    })
+    const cues = analyzeCues(song)
+    expect(cuesOfType(cues, 'reentry').length).toBeGreaterThanOrEqual(1)
+    for (let i = 1; i < cues.length; i++) {
+      expect(cues[i]!.fireAt).toBeGreaterThanOrEqual(cues[i - 1]!.fireAt)
+    }
   })
 })
