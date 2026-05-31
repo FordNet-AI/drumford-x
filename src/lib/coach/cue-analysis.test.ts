@@ -111,6 +111,29 @@ describe('analyzeCues', () => {
     expect(tempo[0]!.text).toContain('120')
   })
 
+  it('ignores small tempo wobble (< 10 bpm) — no cue for 136↔140 drift', () => {
+    const song = makeSong({
+      bpmEvents: [
+        { bpm: 136, time: 0, timeSignature: [4, 4] },
+        { bpm: 140, time: 8, timeSignature: [4, 4] }, // +4 → ignored
+        { bpm: 136, time: 16, timeSignature: [4, 4] }, // −4 → ignored
+      ],
+      duration: 24,
+    })
+    expect(cuesOfType(analyzeCues(song), 'tempo').length).toBe(0)
+  })
+
+  it('still cues a real tempo change of ≥ 10 bpm', () => {
+    const song = makeSong({
+      bpmEvents: [
+        { bpm: 120, time: 0, timeSignature: [4, 4] },
+        { bpm: 130, time: 8, timeSignature: [4, 4] }, // +10 → cue
+      ],
+      duration: 16,
+    })
+    expect(cuesOfType(analyzeCues(song), 'tempo').length).toBe(1)
+  })
+
   it('does NOT emit a tempo cue for a tiny (<=2 bpm) wobble', () => {
     const song = makeSong({
       bpmEvents: [

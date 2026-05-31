@@ -42,8 +42,12 @@ export interface CueEvent {
 // Tunable thresholds — grouped up top so they're easy to retune.
 // ---------------------------------------------------------------------------
 
-/** A tempo change smaller than this (bpm) is treated as a wobble, not a cue. */
-const TEMPO_MIN_DELTA_BPM = 2
+/**
+ * A tempo change smaller than this (bpm) is treated as a wobble, not a cue.
+ * Set to 10 so the 2–4 bpm drift of tempo automation (e.g. bouncing 136↔140)
+ * stays silent — only a real shift (a tens-of-bpm gear change) speaks up.
+ */
+const TEMPO_MIN_DELTA_BPM = 10
 
 /** Sliding window (seconds) used to measure note density for fill detection. */
 const FILL_WINDOW_SEC = 0.75
@@ -209,8 +213,8 @@ function detectTempoAndMeter(song: Song): CueEvent[] {
     const e = events[i]!
     const sig = e.timeSignature ?? prevSig
 
-    // tempo
-    if (Math.abs(e.bpm - prevBpm) > TEMPO_MIN_DELTA_BPM) {
+    // tempo — fires on a change of TEMPO_MIN_DELTA_BPM (10) or more.
+    if (Math.abs(e.bpm - prevBpm) >= TEMPO_MIN_DELTA_BPM) {
       const dir = e.bpm > prevBpm ? 'Speeding up' : 'Slowing down'
       const bpm = Math.round(e.bpm)
       out.push(
