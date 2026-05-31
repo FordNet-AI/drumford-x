@@ -89,6 +89,12 @@ export interface Song {
   folderName: string
   notes: HighwayNote[]
   bpmEvents: RlrrBpmEvent[]
+  /**
+   * Song sections / markers parsed from the .rlrr `bookmarks` array (e.g.
+   * "Verse", "Chorus"), sorted by time. Used by Coach Mode to announce
+   * upcoming section boundaries. Absent or empty for most charts.
+   */
+  sections?: { time: number; label: string }[]
   ghostNoteThreshold: number
   accentNoteThreshold: number
   calibrationOffset: number

@@ -54,6 +54,32 @@ function extractDifficulty(filename: string): string {
 }
 
 /**
+ * Defensively parse the raw `bookmarks` array into song sections.
+ *
+ * The exact Paradiddle bookmark shape is uncertain and varies by editor, so we
+ * read tolerantly: a numeric time from `b.time` and a label from
+ * `b.name ?? b.label ?? b.title`. Entries without a usable numeric time are
+ * skipped; a missing label falls back to a generic "Section". Result is sorted
+ * by time. Most charts have no bookmarks → returns `[]`.
+ */
+export function parseBookmarks(raw: unknown): { time: number; label: string }[] {
+  if (!Array.isArray(raw)) return []
+  const out: { time: number; label: string }[] = []
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null) continue
+    const b = entry as Record<string, unknown>
+    const time = b.time
+    if (typeof time !== 'number' || !Number.isFinite(time)) continue
+    const rawLabel = b.name ?? b.label ?? b.title
+    const label =
+      typeof rawLabel === 'string' && rawLabel.trim() ? rawLabel.trim() : 'Section'
+    out.push({ time, label })
+  }
+  out.sort((a, b) => a.time - b.time)
+  return out
+}
+
+/**
  * Build a fast lookup of lane id → index in kit.lanes.
  * Returns -1 for lanes that aren't enabled or don't exist.
  */
@@ -84,6 +110,7 @@ export function parseRlrr(
     calibrationOffset: number
     ghostNoteThreshold: number
     accentNoteThreshold: number
+    sections: { time: number; label: string }[]
   }
   difficulty: string
 } {
@@ -166,6 +193,7 @@ export function parseRlrr(
       calibrationOffset: data.audioFileData.calibrationOffset ?? 0,
       ghostNoteThreshold: ghostThreshold,
       accentNoteThreshold: accentThreshold,
+      sections: parseBookmarks(data.bookmarks),
     },
     difficulty: extractDifficulty(filename),
   }
