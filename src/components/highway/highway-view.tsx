@@ -6,6 +6,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { AudioEngine } from '@/lib/audio-engine'
 import { Metronome } from '@/lib/metronome'
 import { getStoredSong } from '@/lib/song-storage'
+import { useCueScheduler } from '@/lib/coach/use-cue-scheduler'
 import { HighwayCanvas } from './highway-canvas'
 import { CoachBanner } from './coach-banner'
 import { TransportBar } from '../controls/transport-bar'
@@ -28,6 +29,10 @@ export function HighwayView() {
   const setScreen = useUIStore((s) => s.setScreen)
 
   const [audioReady, setAudioReady] = useState(false)
+
+  // Coach Mode: analyze the active song's cues and fire voice/banner cues as
+  // the player clock reaches each cue's lead time. Self-gated on coachEnabled.
+  useCueScheduler()
 
   const engineRef = useRef<AudioEngine | null>(null)
   const metroRef = useRef<Metronome | null>(null)
