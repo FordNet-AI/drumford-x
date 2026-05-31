@@ -13,6 +13,32 @@ const SUBDIVISIONS = ['quarter', 'eighth', 'sixteenth'] as const
 export type Subdivision = (typeof SUBDIVISIONS)[number]
 
 /**
+ * Per-event cue toggles. Each controls whether one class of coach cue
+ * (tempo change, meter change, fill, double-kick run, section boundary,
+ * re-entry after a break) fires. Phase D wires these into the scheduler; here
+ * they are just persisted booleans the popover edits. All default `true`.
+ */
+export interface EventCues {
+  cueTempo: boolean
+  cueMeter: boolean
+  cueFill: boolean
+  cueDoubleKick: boolean
+  cueSection: boolean
+  cueReentry: boolean
+}
+
+/** Stable key list for EventCues — used to validate/merge persisted values. */
+const EVENT_CUE_KEYS = [
+  'cueTempo',
+  'cueMeter',
+  'cueFill',
+  'cueDoubleKick',
+  'cueSection',
+  'cueReentry',
+] as const
+export type EventCueKey = (typeof EVENT_CUE_KEYS)[number]
+
+/**
  * Coach Mode user preferences, persisted to localStorage.
  *
  * Loaded prefs are merged OVER the defaults on read (see loadCoachPrefs), so
@@ -34,6 +60,24 @@ export interface CoachPrefs {
   accentBeat1: boolean
   /** Metronome click volume, 0..1, default 0.4. */
   metronomeVolume: number
+
+  /** Master switch for Coach Mode. When false, no cues fire (voice or banner). */
+  coachEnabled: boolean
+  /** Spoken (Web Speech) cues on/off. Gated by coachEnabled. */
+  voiceEnabled: boolean
+  /** On-screen banner cues on/off. Gated by coachEnabled. */
+  bannerEnabled: boolean
+  /** Per-event cue toggles (tempo, meter, fill, double-kick, section, re-entry). */
+  eventCues: EventCues
+}
+
+const DEFAULT_EVENT_CUES: EventCues = {
+  cueTempo: true,
+  cueMeter: true,
+  cueFill: true,
+  cueDoubleKick: true,
+  cueSection: true,
+  cueReentry: true,
 }
 
 const DEFAULT_COACH_PREFS: CoachPrefs = {
@@ -42,6 +86,10 @@ const DEFAULT_COACH_PREFS: CoachPrefs = {
   subdivision: 'quarter',
   accentBeat1: true,
   metronomeVolume: 0.4,
+  coachEnabled: true,
+  voiceEnabled: true,
+  bannerEnabled: true,
+  eventCues: { ...DEFAULT_EVENT_CUES },
 }
 
 /** Snap an arbitrary number to the nearest allowed rewind interval. */
@@ -77,6 +125,25 @@ function clampVolume(vol: unknown): number {
   return DEFAULT_COACH_PREFS.metronomeVolume
 }
 
+/** Coerce a persisted value to boolean, falling back to a default if not a boolean. */
+function clampBool(val: unknown, fallback: boolean): boolean {
+  return typeof val === 'boolean' ? val : fallback
+}
+
+/**
+ * Validate a persisted eventCues object. Each key is merged over the defaults,
+ * so a partial/legacy object (or a future-added cue key that's missing) falls
+ * back to `true` per key rather than dropping the whole object.
+ */
+function clampEventCues(cues: unknown): EventCues {
+  const src = (typeof cues === 'object' && cues !== null ? cues : {}) as Partial<EventCues>
+  const out = { ...DEFAULT_EVENT_CUES }
+  for (const key of EVENT_CUE_KEYS) {
+    out[key] = clampBool(src[key], DEFAULT_EVENT_CUES[key])
+  }
+  return out
+}
+
 /**
  * Load coach prefs from localStorage, falling back to defaults on first launch
  * or if the stored data is malformed / from an older schema.
@@ -106,6 +173,10 @@ function loadCoachPrefs(): CoachPrefs {
           ? parsed.accentBeat1
           : DEFAULT_COACH_PREFS.accentBeat1,
       metronomeVolume: clampVolume(parsed.metronomeVolume),
+      coachEnabled: clampBool(parsed.coachEnabled, DEFAULT_COACH_PREFS.coachEnabled),
+      voiceEnabled: clampBool(parsed.voiceEnabled, DEFAULT_COACH_PREFS.voiceEnabled),
+      bannerEnabled: clampBool(parsed.bannerEnabled, DEFAULT_COACH_PREFS.bannerEnabled),
+      eventCues: clampEventCues(parsed.eventCues),
     }
   } catch (err) {
     console.warn('[coach] failed to load, using defaults', err)
@@ -132,6 +203,15 @@ interface CoachState extends CoachPrefs {
   setAccentBeat1: (on: boolean) => void
   /** Set the metronome volume (0..1). Clamps and persists immediately. */
   setMetronomeVolume: (vol: number) => void
+
+  /** Toggle the Coach Mode master switch. Persists immediately. */
+  setCoachEnabled: (on: boolean) => void
+  /** Toggle spoken cues. Persists immediately. */
+  setVoiceEnabled: (on: boolean) => void
+  /** Toggle on-screen banner cues. Persists immediately. */
+  setBannerEnabled: (on: boolean) => void
+  /** Toggle a single per-event cue (tempo/meter/fill/…). Persists immediately. */
+  setEventCue: (key: EventCueKey, on: boolean) => void
 }
 
 export const useCoachStore = create<CoachState>()((set, get) => ({
@@ -170,5 +250,33 @@ export const useCoachStore = create<CoachState>()((set, get) => ({
     const next: CoachPrefs = { ...get(), metronomeVolume }
     saveCoachPrefs(next)
     set({ metronomeVolume })
+  },
+
+  setCoachEnabled: (on) => {
+    const coachEnabled = !!on
+    const next: CoachPrefs = { ...get(), coachEnabled }
+    saveCoachPrefs(next)
+    set({ coachEnabled })
+  },
+
+  setVoiceEnabled: (on) => {
+    const voiceEnabled = !!on
+    const next: CoachPrefs = { ...get(), voiceEnabled }
+    saveCoachPrefs(next)
+    set({ voiceEnabled })
+  },
+
+  setBannerEnabled: (on) => {
+    const bannerEnabled = !!on
+    const next: CoachPrefs = { ...get(), bannerEnabled }
+    saveCoachPrefs(next)
+    set({ bannerEnabled })
+  },
+
+  setEventCue: (key, on) => {
+    const eventCues: EventCues = { ...get().eventCues, [key]: !!on }
+    const next: CoachPrefs = { ...get(), eventCues }
+    saveCoachPrefs(next)
+    set({ eventCues })
   },
 }))
