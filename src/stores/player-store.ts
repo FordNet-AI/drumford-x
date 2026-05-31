@@ -14,9 +14,12 @@ interface PlayerState {
   /** User-adjustable sync offset in seconds. Positive = notes delayed (audio ahead). */
   userOffset: number
 
-  /** Metronome state */
+  /**
+   * Metronome on/off — session state (not persisted), matching the shipping
+   * default of OFF on each launch. The customizable metronome prefs (volume,
+   * count-in, subdivision, accent) live in the persisted coach store instead.
+   */
   metronomeEnabled: boolean
-  metronomeVolume: number
 
   /** Audio engine ref — set by HighwayView, used by tick() for audio-locked timing */
   _engine: AudioEngine | null
@@ -32,7 +35,6 @@ interface PlayerState {
   setDrumVolume: (vol: number) => void
   setUserOffset: (offset: number) => void
   setMetronomeEnabled: (enabled: boolean) => void
-  setMetronomeVolume: (vol: number) => void
   tick: () => void
   reset: () => void
 }
@@ -46,7 +48,6 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   activeSong: null,
   userOffset: 0,
   metronomeEnabled: false,
-  metronomeVolume: 0.4,
   _engine: null,
   _metronome: null,
 
@@ -93,7 +94,6 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   setDrumVolume: (vol) => set({ drumVolume: vol }),
   setUserOffset: (offset) => set({ userOffset: offset }),
   setMetronomeEnabled: (enabled) => set({ metronomeEnabled: enabled }),
-  setMetronomeVolume: (vol) => set({ metronomeVolume: vol }),
 
   /**
    * Called every animation frame during playback.
