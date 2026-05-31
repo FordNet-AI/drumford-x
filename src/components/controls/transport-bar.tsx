@@ -164,7 +164,7 @@ export function TransportBar({ onSeek }: { onSeek: (time: number) => void }) {
         <MetronomeControl />
         <SpeedControl />
         <OffsetControl />
-        <CoachControl />
+        <CoachControl onSeek={onSeek} />
       </div>
     </div>
   )
