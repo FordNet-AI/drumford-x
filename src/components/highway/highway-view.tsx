@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { usePlayerStore } from '@/stores/player-store'
+import { useCoachStore } from '@/stores/coach-store'
 import { useUIStore } from '@/stores/ui-store'
 import { AudioEngine } from '@/lib/audio-engine'
 import { Metronome } from '@/lib/metronome'
@@ -16,7 +17,10 @@ export function HighwayView() {
   const songVolume = usePlayerStore((s) => s.songVolume)
   const drumVolume = usePlayerStore((s) => s.drumVolume)
   const metronomeEnabled = usePlayerStore((s) => s.metronomeEnabled)
-  const metronomeVolume = usePlayerStore((s) => s.metronomeVolume)
+  // Metronome prefs live in the (persisted) coach store.
+  const metronomeVolume = useCoachStore((s) => s.metronomeVolume)
+  const subdivision = useCoachStore((s) => s.subdivision)
+  const accentBeat1 = useCoachStore((s) => s.accentBeat1)
   const play = usePlayerStore((s) => s.play)
   const pause = usePlayerStore((s) => s.pause)
   const reset = usePlayerStore((s) => s.reset)
@@ -27,6 +31,12 @@ export function HighwayView() {
   const engineRef = useRef<AudioEngine | null>(null)
   const metroRef = useRef<Metronome | null>(null)
   const prevPlayingRef = useRef(false)
+  // Count-in: a pending lead-in is running. While true, the engine has NOT
+  // started yet and the highway stays parked at currentTime 0 — the only
+  // sound is the metronome's pre-scheduled count-in clicks. The timer fires
+  // the real start; pausing cancels it (see the play effect below).
+  const countInTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const countInActiveRef = useRef(false)
 
   // Create engine + metronome, register with player store, load audio stems
   useEffect(() => {
@@ -39,6 +49,12 @@ export function HighwayView() {
     metroRef.current = metro
     usePlayerStore.setState({ _metronome: metro })
 
+    // Apply current (persisted) metronome prefs to the fresh engine.
+    const coach = useCoachStore.getState()
+    metro.setVolume(coach.metronomeVolume)
+    metro.setSubdivision(coach.subdivision)
+    metro.setAccentBeat1(coach.accentBeat1)
+
     // Pre-compute beat grid if we have a song
     if (activeSong) {
       metro.setBpmEvents(activeSong.bpmEvents, activeSong.duration)
@@ -50,6 +66,12 @@ export function HighwayView() {
     // play/pause flip as a fresh transition rather than a stale continuation
     // from the previous song.
     prevPlayingRef.current = false
+    // Cancel any count-in that was pending for the previous song.
+    if (countInTimerRef.current !== null) {
+      clearTimeout(countInTimerRef.current)
+      countInTimerRef.current = null
+    }
+    countInActiveRef.current = false
 
     async function loadAudio() {
       if (!activeSong) return
@@ -77,6 +99,11 @@ export function HighwayView() {
 
     return () => {
       cancelled = true
+      if (countInTimerRef.current !== null) {
+        clearTimeout(countInTimerRef.current)
+        countInTimerRef.current = null
+      }
+      countInActiveRef.current = false
       metro.stop()
       metroRef.current = null
       usePlayerStore.setState({ _metronome: null })
@@ -89,6 +116,12 @@ export function HighwayView() {
   // Play/pause — gated on audioReady so play waits for all stems to load.
   // If user presses Play before decoding finishes, this effect re-fires
   // when audioReady becomes true, starting playback automatically.
+  //
+  // Count-in: when starting from the very top (currentTime ≈ 0) with the
+  // metronome on and a count-in configured, we play a standalone lead-in
+  // (clicks only, song clock parked at 0) and defer the real start until the
+  // lead-in finishes. Every other case — resuming mid-song, count-in Off, or
+  // metronome disabled — starts immediately, exactly as before.
   useEffect(() => {
     const engine = engineRef.current
     const metro = metroRef.current
@@ -97,14 +130,57 @@ export function HighwayView() {
     if (isPlaying && !prevPlayingRef.current) {
       const { currentTime, speed, activeSong: song, metronomeEnabled: metroOn } = usePlayerStore.getState()
       const calOffset = song?.calibrationOffset ?? 0
-      engine.play(currentTime, speed, calOffset)
+      const countInBars = useCoachStore.getState().countInBars
 
-      if (metro && metroOn) {
-        metro.play(currentTime, speed)
+      // Count-in only at the very top of the song, with the metronome on.
+      const atStart = currentTime <= 0.01
+      const useCountIn = metro != null && metroOn && countInBars > 0 && atStart
+
+      if (useCountIn) {
+        // Standalone lead-in. Do NOT start the engine/metronome yet — keep the
+        // highway parked at 0 (engine.getPlaybackTime() returns 0 while stopped,
+        // so the player tick won't scroll). Schedule the real start after the
+        // lead-in's duration.
+        const duration = metro!.playCountIn(countInBars, speed)
+        countInActiveRef.current = true
+        if (countInTimerRef.current !== null) clearTimeout(countInTimerRef.current)
+        countInTimerRef.current = setTimeout(() => {
+          countInTimerRef.current = null
+          countInActiveRef.current = false
+          // Bail if playback was stopped/torn down while we waited.
+          const eng = engineRef.current
+          const mtr = metroRef.current
+          if (!eng || !usePlayerStore.getState().isPlaying) return
+          const st = usePlayerStore.getState()
+          const cal = st.activeSong?.calibrationOffset ?? 0
+          eng.play(0, st.speed, cal)
+          if (mtr && st.metronomeEnabled) mtr.play(0, st.speed)
+        }, duration * 1000)
+      } else {
+        // Normal start — unchanged from before.
+        engine.play(currentTime, speed, calOffset)
+        if (metro && metroOn) {
+          metro.play(currentTime, speed)
+        }
       }
     } else if (!isPlaying && prevPlayingRef.current) {
+      // Pause. If a count-in lead-in was pending, cancel it cleanly: drop the
+      // timer (so the song never starts) and silence the pending clicks. The
+      // engine was never started for this play, so engine.stop() is a no-op.
+      const wasCountingIn = countInTimerRef.current !== null
+      if (countInTimerRef.current !== null) {
+        clearTimeout(countInTimerRef.current)
+        countInTimerRef.current = null
+      }
+      countInActiveRef.current = false
       engine.stop()
       metro?.stop()
+      // store.pause() set currentTime from engine.getPlaybackTime(); during a
+      // count-in the engine never ran for this play, so that reads a STALE
+      // position (e.g. a prior partial playthrough left _startSongTime > 0).
+      // Snap back to 0 so the highway stays parked and resuming re-arms the
+      // count-in from the top.
+      if (wasCountingIn) usePlayerStore.getState().seek(0)
     }
     prevPlayingRef.current = isPlaying
   }, [isPlaying, audioReady])
@@ -117,17 +193,30 @@ export function HighwayView() {
     engineRef.current?.setDrumVolume(drumVolume)
   }, [drumVolume])
 
-  // Metronome volume
+  // Metronome volume (persisted in coach store)
   useEffect(() => {
     metroRef.current?.setVolume(metronomeVolume)
   }, [metronomeVolume])
+
+  // Metronome subdivision (quarter / eighth / sixteenth)
+  useEffect(() => {
+    metroRef.current?.setSubdivision(subdivision)
+  }, [subdivision])
+
+  // Metronome accent on beat 1
+  useEffect(() => {
+    metroRef.current?.setAccentBeat1(accentBeat1)
+  }, [accentBeat1])
 
   // Metronome enable/disable mid-playback
   useEffect(() => {
     const metro = metroRef.current
     if (!metro) return
 
-    if (metronomeEnabled && isPlaying) {
+    // While a count-in lead-in is pending, the engine hasn't started and the
+    // count-in clicks are already scheduled — don't kick off the regular
+    // metronome here or it would stomp the lead-in and start early.
+    if (metronomeEnabled && isPlaying && !countInActiveRef.current) {
       const { currentTime, speed } = usePlayerStore.getState()
       metro.play(currentTime, speed)
     } else if (!metronomeEnabled) {
@@ -141,11 +230,21 @@ export function HighwayView() {
     metroRef.current?.setSpeed(speed)
   }, [speed])
 
-  // Seek while playing — restart engine and metronome at new position
+  // Seek while playing — restart engine and metronome at new position.
+  // Seeking is an immediate jump with NO count-in (matches prior behavior). If
+  // a count-in lead-in was pending, cancel it so its deferred start can't fire
+  // afterward and snap playback back to 0.
   const handleSeek = useCallback((time: number) => {
     const engine = engineRef.current
     const metro = metroRef.current
     if (!engine) return
+
+    if (countInTimerRef.current !== null) {
+      clearTimeout(countInTimerRef.current)
+      countInTimerRef.current = null
+    }
+    countInActiveRef.current = false
+
     const { isPlaying: wasPlaying, speed, activeSong: song, metronomeEnabled: metroOn } = usePlayerStore.getState()
     if (wasPlaying) {
       const calOffset = song?.calibrationOffset ?? 0
@@ -172,7 +271,13 @@ export function HighwayView() {
   }, [play, pause])
 
   const handleBack = () => {
+    if (countInTimerRef.current !== null) {
+      clearTimeout(countInTimerRef.current)
+      countInTimerRef.current = null
+    }
+    countInActiveRef.current = false
     engineRef.current?.stop()
+    metroRef.current?.stop()
     reset()
     setScreen('library')
   }
