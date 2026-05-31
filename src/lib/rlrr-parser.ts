@@ -110,6 +110,7 @@ export function parseRlrr(
     calibrationOffset: number
     ghostNoteThreshold: number
     accentNoteThreshold: number
+    description: string
     sections: { time: number; label: string }[]
   }
   difficulty: string
@@ -193,6 +194,9 @@ export function parseRlrr(
       calibrationOffset: data.audioFileData.calibrationOffset ?? 0,
       ghostNoteThreshold: ghostThreshold,
       accentNoteThreshold: accentThreshold,
+      // Author's chart blurb (may be absent on old/community charts). Trim so an
+      // all-whitespace description reads as empty downstream.
+      description: (data.recordingMetadata.description ?? '').trim(),
       sections: parseBookmarks(data.bookmarks),
     },
     difficulty: extractDifficulty(filename),

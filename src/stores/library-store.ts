@@ -495,6 +495,7 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
       folderName: stored.folderName,
       notes: parsed.notes,
       bpmEvents: parsed.bpmEvents,
+      description: parsed.meta.description,
       sections: parsed.meta.sections,
       ghostNoteThreshold: parsed.meta.ghostNoteThreshold,
       accentNoteThreshold: parsed.meta.accentNoteThreshold,

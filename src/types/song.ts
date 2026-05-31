@@ -90,6 +90,13 @@ export interface Song {
   notes: HighwayNote[]
   bpmEvents: RlrrBpmEvent[]
   /**
+   * Author-written chart description from the .rlrr `recordingMetadata.description`
+   * (trimmed). Used by Coach Mode as the "pro tip" shown/spoken at song start
+   * when present; otherwise an auto-generated summary is used. Absent or empty
+   * for most charts.
+   */
+  description?: string
+  /**
    * Song sections / markers parsed from the .rlrr `bookmarks` array (e.g.
    * "Verse", "Chorus"), sorted by time. Used by Coach Mode to announce
    * upcoming section boundaries. Absent or empty for most charts.
