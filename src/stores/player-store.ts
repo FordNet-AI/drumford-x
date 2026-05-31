@@ -25,6 +25,14 @@ interface PlayerState {
   _engine: AudioEngine | null
   /** Metronome ref — set by HighwayView, ticked in animation loop */
   _metronome: Metronome | null
+  /**
+   * Transient session flag (not persisted, not a UI setter): true while a
+   * metronome count-in lead-in is running. During the lead-in the audio engine
+   * has NOT been started, so engine.getPlaybackTime() would return a STALE
+   * anchor from a prior pause — tick() gates on this flag to keep the highway
+   * parked at 0. Set/cleared by HighwayView via usePlayerStore.setState.
+   */
+  _countInActive: boolean
 
   loadSong: (song: Song) => void
   play: () => void
@@ -50,6 +58,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   metronomeEnabled: false,
   _engine: null,
   _metronome: null,
+  _countInActive: false,
 
   loadSong: (song) => set({
     activeSong: song,
@@ -104,6 +113,13 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     const state = get()
     if (!state.isPlaying || !state.activeSong) return
 
+    // During a count-in lead-in the engine hasn't started, so its clock holds a
+    // stale anchor. Park the highway at 0 instead of reading that stale value.
+    if (get()._countInActive) {
+      if (get().currentTime !== 0) set({ currentTime: 0 })
+      return
+    }
+
     const engine = state._engine
     if (!engine) return
 
@@ -127,5 +143,6 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     currentTime: 0,
     speed: 1,
     activeSong: null,
+    _countInActive: false,
   }),
 }))

@@ -104,6 +104,8 @@ export function HighwayView() {
         countInTimerRef.current = null
       }
       countInActiveRef.current = false
+      // Clear the tick() gate on teardown/song-change so it never persists.
+      usePlayerStore.setState({ _countInActive: false })
       metro.stop()
       metroRef.current = null
       usePlayerStore.setState({ _metronome: null })
@@ -143,10 +145,15 @@ export function HighwayView() {
         // lead-in's duration.
         const duration = metro!.playCountIn(countInBars, speed)
         countInActiveRef.current = true
+        // Park the highway at 0 and gate player-store.tick() so it ignores the
+        // engine's stale clock during the lead-in (the engine isn't running).
+        usePlayerStore.setState({ currentTime: 0, _countInActive: true })
         if (countInTimerRef.current !== null) clearTimeout(countInTimerRef.current)
         countInTimerRef.current = setTimeout(() => {
           countInTimerRef.current = null
           countInActiveRef.current = false
+          // Lead-in done — ungate tick() so it resumes reading the engine clock.
+          usePlayerStore.setState({ _countInActive: false })
           // Bail if playback was stopped/torn down while we waited.
           const eng = engineRef.current
           const mtr = metroRef.current
@@ -173,6 +180,9 @@ export function HighwayView() {
         countInTimerRef.current = null
       }
       countInActiveRef.current = false
+      // Always clear the tick() gate so a normal pause after the count-in isn't
+      // parked at 0 by mistake.
+      usePlayerStore.setState({ _countInActive: false })
       engine.stop()
       metro?.stop()
       // store.pause() set currentTime from engine.getPlaybackTime(); during a
@@ -244,6 +254,8 @@ export function HighwayView() {
       countInTimerRef.current = null
     }
     countInActiveRef.current = false
+    // Clear the tick() gate — seek is an immediate jump, no count-in.
+    usePlayerStore.setState({ _countInActive: false })
 
     const { isPlaying: wasPlaying, speed, activeSong: song, metronomeEnabled: metroOn } = usePlayerStore.getState()
     if (wasPlaying) {
@@ -276,6 +288,9 @@ export function HighwayView() {
       countInTimerRef.current = null
     }
     countInActiveRef.current = false
+    // reset() also clears this, but clear here too so the gate is never left set
+    // on the way out (defensive, and keeps cancel paths uniform).
+    usePlayerStore.setState({ _countInActive: false })
     engineRef.current?.stop()
     metroRef.current?.stop()
     reset()
