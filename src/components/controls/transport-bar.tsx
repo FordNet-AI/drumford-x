@@ -9,6 +9,8 @@ import { OffsetControl } from './offset-control'
 import { MetronomeControl } from './metronome-control'
 import { RewindControl } from './rewind-control'
 import { CoachControl } from './coach-popover'
+import { DrillControl } from './drill-control'
+import { useDrillStore } from '@/stores/drill-store'
 
 export function TransportBar({ onSeek }: { onSeek: (time: number) => void }) {
   const isPlaying = usePlayerStore((s) => s.isPlaying)
@@ -16,6 +18,10 @@ export function TransportBar({ onSeek }: { onSeek: (time: number) => void }) {
   const play = usePlayerStore((s) => s.play)
   const pause = usePlayerStore((s) => s.pause)
   const seek = usePlayerStore((s) => s.seek)
+
+  // Drill loop region — drawn as A/B markers + a band over the seek bar.
+  const loopStart = useDrillStore((s) => s.loopStart)
+  const loopEnd = useDrillStore((s) => s.loopEnd)
 
   const duration = activeSong?.duration ?? 0
   const rangeRef = useRef<HTMLInputElement>(null)
@@ -129,20 +135,48 @@ export function TransportBar({ onSeek }: { onSeek: (time: number) => void }) {
         {formatDuration(0)}
       </span>
 
-      <input
-        ref={rangeRef}
-        type="range"
-        min={0}
-        max={duration}
-        step={0.1}
-        defaultValue={0}
-        onChange={handleSeek}
-        onMouseDown={handleScrubStart}
-        onMouseUp={handleScrubEnd}
-        onTouchStart={handleScrubStart}
-        onTouchEnd={handleScrubEnd}
-        className="flex-1 min-w-[140px] h-1"
-      />
+      <div className="relative flex flex-1 min-w-[140px] items-center">
+        {/* Drill loop overlay (cyan): a translucent band A→B plus thin A/B
+            markers, drawn OVER the track but pointer-events-none so they never
+            block scrubbing. Only shown once the marks exist. */}
+        {duration > 0 && loopStart != null && loopEnd != null && (
+          <div
+            className="pointer-events-none absolute top-1/2 z-20 h-2 -translate-y-1/2 rounded-sm bg-[#00e5ff26]"
+            style={{
+              left: `${Math.min(100, (loopStart / duration) * 100)}%`,
+              width: `${Math.max(0, Math.min(100, ((loopEnd - loopStart) / duration) * 100))}%`,
+            }}
+          />
+        )}
+        {duration > 0 && loopStart != null && (
+          <div
+            className="pointer-events-none absolute top-1/2 z-20 h-3 w-0.5 -translate-y-1/2 bg-[#00e5ff]"
+            style={{ left: `${Math.min(100, (loopStart / duration) * 100)}%` }}
+            title="Loop start (A)"
+          />
+        )}
+        {duration > 0 && loopEnd != null && (
+          <div
+            className="pointer-events-none absolute top-1/2 z-20 h-3 w-0.5 -translate-y-1/2 bg-[#00e5ff]"
+            style={{ left: `${Math.min(100, (loopEnd / duration) * 100)}%` }}
+            title="Loop end (B)"
+          />
+        )}
+        <input
+          ref={rangeRef}
+          type="range"
+          min={0}
+          max={duration}
+          step={0.1}
+          defaultValue={0}
+          onChange={handleSeek}
+          onMouseDown={handleScrubStart}
+          onMouseUp={handleScrubEnd}
+          onTouchStart={handleScrubStart}
+          onTouchEnd={handleScrubEnd}
+          className="relative z-10 w-full h-1"
+        />
+      </div>
 
       <span className="shrink-0 text-xs text-[#555] w-[44px] tabular-nums">
         {formatDuration(duration)}
@@ -165,6 +199,7 @@ export function TransportBar({ onSeek }: { onSeek: (time: number) => void }) {
         <SpeedControl />
         <OffsetControl />
         <CoachControl onSeek={onSeek} />
+        <DrillControl />
       </div>
     </div>
   )

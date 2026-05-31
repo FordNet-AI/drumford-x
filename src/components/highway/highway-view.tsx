@@ -7,6 +7,8 @@ import { AudioEngine } from '@/lib/audio-engine'
 import { Metronome } from '@/lib/metronome'
 import { getStoredSong } from '@/lib/song-storage'
 import { useCueScheduler } from '@/lib/coach/use-cue-scheduler'
+import { useDrillLoop } from '@/lib/coach/use-drill-loop'
+import { useDrillStore } from '@/stores/drill-store'
 import { useCoachRuntime } from '@/stores/coach-runtime'
 import { speak } from '@/lib/coach/speech'
 import { generateProTip, sanitizeDescription } from '@/lib/coach/pro-tip'
@@ -86,6 +88,8 @@ export function HighwayView() {
     prevPlayingRef.current = false
     // New song activation — re-arm the once-per-load pro tip.
     proTipShownRef.current = false
+    // Clear any drill loop/ramp from the previous song (session-only state).
+    useDrillStore.getState().resetDrill()
     // Cancel any count-in that was pending for the previous song.
     if (countInTimerRef.current !== null) {
       clearTimeout(countInTimerRef.current)
@@ -319,6 +323,10 @@ export function HighwayView() {
     }
   }, [])
 
+  // Drill Mode: loop the A↔B region (and ramp the tempo) by reusing the same
+  // seek-restart path. No-op until the user arms a loop.
+  useDrillLoop(handleSeek)
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.code === 'Space' && e.target === document.body) {
@@ -342,6 +350,7 @@ export function HighwayView() {
     usePlayerStore.setState({ _countInActive: false })
     engineRef.current?.stop()
     metroRef.current?.stop()
+    useDrillStore.getState().resetDrill()
     reset()
     setScreen('library')
   }
