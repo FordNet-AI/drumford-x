@@ -8,6 +8,7 @@ import { SpeedControl } from './speed-control'
 import { OffsetControl } from './offset-control'
 import { MetronomeControl } from './metronome-control'
 import { RewindControl } from './rewind-control'
+import { CoachControl } from './coach-popover'
 
 export function TransportBar({ onSeek }: { onSeek: (time: number) => void }) {
   const isPlaying = usePlayerStore((s) => s.isPlaying)
@@ -163,6 +164,7 @@ export function TransportBar({ onSeek }: { onSeek: (time: number) => void }) {
         <MetronomeControl />
         <SpeedControl />
         <OffsetControl />
+        <CoachControl />
       </div>
     </div>
   )

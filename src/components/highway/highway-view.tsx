@@ -7,6 +7,7 @@ import { AudioEngine } from '@/lib/audio-engine'
 import { Metronome } from '@/lib/metronome'
 import { getStoredSong } from '@/lib/song-storage'
 import { HighwayCanvas } from './highway-canvas'
+import { CoachBanner } from './coach-banner'
 import { TransportBar } from '../controls/transport-bar'
 import { QuickKitPopover } from '../setup/quick-kit-popover'
 
@@ -320,6 +321,7 @@ export function HighwayView() {
 
       <div className="relative flex flex-col flex-1 min-h-0">
         <HighwayCanvas />
+        <CoachBanner />
         {!audioReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#0d1424]/80 pointer-events-none">
             <div className="flex items-center gap-2 text-[#888] text-sm">
