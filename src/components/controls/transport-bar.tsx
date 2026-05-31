@@ -7,6 +7,7 @@ import { VolumeSliders } from './volume-sliders'
 import { SpeedControl } from './speed-control'
 import { OffsetControl } from './offset-control'
 import { MetronomeControl } from './metronome-control'
+import { RewindControl } from './rewind-control'
 
 export function TransportBar({ onSeek }: { onSeek: (time: number) => void }) {
   const isPlaying = usePlayerStore((s) => s.isPlaying)
@@ -113,6 +114,8 @@ export function TransportBar({ onSeek }: { onSeek: (time: number) => void }) {
       >
         <SkipBack size={18} />
       </button>
+
+      <RewindControl onSeek={onSeek} />
 
       <button
         onClick={handlePlayPause}
