@@ -38,16 +38,20 @@ function DrumIcon({ size = 14, className = '' }: { size?: number; className?: st
 }
 
 /**
- * Map a difficulty count to a Tailwind grid-cols class. Tailwind purges
- * dynamic class names so each variant has to appear as a literal string.
- * Capped at 5 — songs with 6+ difficulties (unusual) wrap to a second row.
+ * Short, ellipsis-free difficulty labels. The difficulty buttons are
+ * content-sized (see render), so labels just need to stay terse:
+ *  - "Medium" → "Med"
+ *  - "Expert" → "Expert" when there's room (≤3 difficulties on the row), "Exp"
+ *    when it's crowded (4+) and the full word wouldn't fit the narrower buttons.
+ *  - "Easy" / "Hard" / any custom difficulty pass through unchanged.
+ * `count` (the number of difficulties on this card) is a cheap proxy for how
+ * much width each button gets — good enough to decide Expert vs Exp without
+ * measuring the DOM.
  */
-function gridColsForCount(n: number): string {
-  if (n <= 1) return 'grid-cols-1'
-  if (n === 2) return 'grid-cols-2'
-  if (n === 3) return 'grid-cols-3'
-  if (n === 4) return 'grid-cols-4'
-  return 'grid-cols-5'
+function difficultyLabel(diff: string, count: number): string {
+  if (diff === 'Medium') return 'Med'
+  if (diff === 'Expert') return count >= 4 ? 'Exp' : 'Expert'
+  return diff
 }
 
 export function SongCard({ song, onPlay, onEdit, hideArt }: SongCardProps) {
@@ -77,7 +81,6 @@ export function SongCard({ song, onPlay, onEdit, hideArt }: SongCardProps) {
   // occurrence, which matches the order availableDifficulties returns
   // (sorted easiest → hardest via sortDifficulties).
   const uniqueDifficulties = Array.from(new Set(song.difficulties))
-  const difficultyColsClass = gridColsForCount(uniqueDifficulties.length)
 
   return (
     <div className="bg-[#0d1424] border border-[#1a1a2e] rounded-lg overflow-hidden hover:border-[#2a2a4a] transition-colors group">
@@ -157,20 +160,21 @@ export function SongCard({ song, onPlay, onEdit, hideArt }: SongCardProps) {
           <KitSignature instrumentClasses={song.instrumentClasses} />
         </div>
 
-        {/* Difficulty grid — equal-width columns so all difficulties fit on
-            one row. The whole-card click handler is intentionally removed:
-            clicking a difficulty button is now the ONLY way to enter the song,
-            regardless of how many difficulties exist. Consistency over a
-            tiny convenience win for single-difficulty songs. */}
-        <div className={`grid gap-1 mt-3 ${difficultyColsClass}`}>
+        {/* Difficulty buttons — content-sized pills in a wrapping row. A single
+            difficulty stays a compact pill (never a full-width bar), and a
+            crowded row wraps gracefully instead of truncating to "Expe…". A
+            difficulty button is the ONLY way to enter the song (the whole-card
+            click handler was intentionally removed), so each is left-aligned and
+            tappable; `min-w` keeps them a tidy minimum size / touch target. */}
+        <div className="flex flex-wrap gap-1 mt-3">
           {uniqueDifficulties.map((diff) => (
             <button
               key={diff}
               onClick={() => onPlay(diff)}
-              className="px-1.5 py-1 text-[11px] bg-[#12121e] border border-[#1a1a2e] rounded hover:border-[#00e5ff] hover:text-[#00e5ff] transition-colors truncate"
+              className="px-2.5 py-1 min-w-[2.75rem] text-center text-[11px] bg-[#12121e] border border-[#1a1a2e] rounded hover:border-[#00e5ff] hover:text-[#00e5ff] transition-colors whitespace-nowrap"
               title={diff}
             >
-              {diff}
+              {difficultyLabel(diff, uniqueDifficulties.length)}
             </button>
           ))}
         </div>
