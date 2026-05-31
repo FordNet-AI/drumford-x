@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { usePlayerStore } from '@/stores/player-store'
-import { useCoachStore, type EventCueKey } from '@/stores/coach-store'
+import { useCoachStore, type EventCueKey, type UserCue } from '@/stores/coach-store'
 import { useCoachRuntime } from '@/stores/coach-runtime'
 import { speak } from '@/lib/coach/speech'
-import { analyzeCues, type CueEvent, type CueType } from '@/lib/coach/cue-analysis'
+import {
+  analyzeCues,
+  userCuesToCueEvents,
+  type CueEvent,
+  type CueType,
+} from '@/lib/coach/cue-analysis'
 
 /**
  * Coach Mode cue scheduler.
@@ -22,8 +27,10 @@ import { analyzeCues, type CueEvent, type CueType } from '@/lib/coach/cue-analys
  *
  * Gating:
  *  - Does nothing at all when Coach Mode is off (coachEnabled === false).
- *  - Each cue type is gated by its per-event toggle (eventCues.*). Within a
- *    fired cue, voice is gated by voiceEnabled and the banner by bannerEnabled.
+ *  - Each AUTO cue type is gated by its per-event toggle (eventCues.*). USER cues
+ *    (drummer-authored, merged in from userCuesToCueEvents) have NO per-type
+ *    toggle — they fire whenever Coach + voice/banner are on. Within a fired cue,
+ *    voice is gated by voiceEnabled and the banner by bannerEnabled.
  *  - A runtime min-gap (RUNTIME_MIN_GAP_SEC) suppresses spoken cues that would
  *    stack too close together — belt-and-suspenders on top of the analysis-time
  *    spacing/dedup, in case a backward seek lands mid-cluster.
@@ -58,11 +65,24 @@ const COUNT_WORDS = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 
 /** Per-count banner duration multiplier over one beat (so the digit lingers ~1 beat). */
 const COUNT_BANNER_BEAT_FACTOR = 1.1
 
+/**
+ * Stable empty user-cue list. Returned by the store selector when the active
+ * song has no cues so the selector's identity is constant (no needless memo
+ * re-runs / re-renders from a fresh `[]` each call).
+ */
+const EMPTY_USER_CUES: UserCue[] = []
+
 /** Brief "GO" flash duration (ms) shown the instant the drummer re-enters. */
 const GO_BANNER_MS = 700
 
-/** Map each cue type to the per-event toggle key that gates it. */
-const CUE_TYPE_TO_TOGGLE: Record<CueType, EventCueKey> = {
+/**
+ * Map each gated cue type to the per-event toggle key that controls it.
+ *
+ * 'user' is intentionally ABSENT: user cues are explicit drummer intent and have
+ * no per-type toggle — they fire whenever Coach + voice/banner are on. ('reentry'
+ * is present but handled in its own pass below.)
+ */
+const CUE_TYPE_TO_TOGGLE: Partial<Record<CueType, EventCueKey>> = {
   tempo: 'cueTempo',
   meter: 'cueMeter',
   fill: 'cueFill',
@@ -153,12 +173,30 @@ export function useCueScheduler(): void {
   const currentTime = usePlayerStore((s) => s.currentTime)
   const coachEnabled = useCoachStore((s) => s.coachEnabled)
 
-  // Analyze once per song. Cheap to recompute, but memoizing keeps it off the
-  // per-frame path and gives us a stable array identity to key the effect on.
-  const cues = useMemo<CueEvent[]>(
-    () => (activeSong ? analyzeCues(activeSong) : []),
-    [activeSong],
+  // Subscribe to JUST this song's user-cue list. Its array identity changes only
+  // when the active song's cues are added/updated/deleted (the store builds a new
+  // array on every mutation), so the memo below re-runs on edits but NOT when an
+  // unrelated song's cues change. Falls back to a stable empty array.
+  const userCues = useCoachStore((s) =>
+    activeSong ? s.userCues[activeSong.id] ?? EMPTY_USER_CUES : EMPTY_USER_CUES,
   )
+
+  // Analyze once per song, then merge the drummer's own cues in. Cheap to
+  // recompute, but memoizing keeps it off the per-frame path and gives us a
+  // stable array identity to key the effect on. Re-runs when the song changes OR
+  // when this song's user-cue list changes (so edits take effect on the next
+  // replay without a reload).
+  const cues = useMemo<CueEvent[]>(() => {
+    if (!activeSong) return []
+    const auto = analyzeCues(activeSong)
+    const user = userCuesToCueEvents(userCues, activeSong.bpmEvents)
+    // Merge + re-sort by fireAt. User cues are EXEMPT from the analysis-time
+    // priority dedup (explicit drummer intent — never dropped); they coexist
+    // with any auto cue at the same spot, just like reentry cues.
+    const merged = [...auto, ...user]
+    merged.sort((a, b) => a.fireAt - b.fireAt)
+    return merged
+  }, [activeSong, userCues])
 
   // Which single-fire cue indices have already fired this pass.
   const firedRef = useRef<Set<number>>(new Set())
@@ -217,8 +255,11 @@ export function useCueScheduler(): void {
       // min-gap) doesn't re-evaluate every subsequent frame.
       firedRef.current.add(i)
 
-      // Per-type toggle gate.
-      if (!coach.eventCues[CUE_TYPE_TO_TOGGLE[cue.type]]) continue
+      // Per-type toggle gate. 'user' cues have NO toggle (toggleKey undefined) —
+      // they're explicit drummer intent and fire whenever Coach + voice/banner
+      // are on, gated only by the master switch (already checked above).
+      const toggleKey = CUE_TYPE_TO_TOGGLE[cue.type]
+      if (toggleKey && !coach.eventCues[toggleKey]) continue
 
       // Banner — independently gated; the banner component also re-checks the
       // toggles before painting.
@@ -227,8 +268,12 @@ export function useCueScheduler(): void {
       }
 
       // Voice — gated + runtime min-gap so utterances don't stack/cancel.
+      // 'user' cues bypass the min-gap (explicit drummer intent — never silently
+      // dropped), though they still update lastSpokenTime so a following AUTO cue
+      // doesn't immediately talk over them.
       if (coach.voiceEnabled) {
-        if (cue.fireAt - lastSpokenTimeRef.current >= RUNTIME_MIN_GAP_SEC) {
+        const isUser = cue.type === 'user'
+        if (isUser || cue.fireAt - lastSpokenTimeRef.current >= RUNTIME_MIN_GAP_SEC) {
           speak(cue.text)
           lastSpokenTimeRef.current = cue.fireAt
         }

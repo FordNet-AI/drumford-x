@@ -1,4 +1,5 @@
 import type { HighwayNote, RlrrBpmEvent, Song } from '@/types/song'
+import type { UserCue } from '@/stores/coach-store'
 import { resolveInstrumentLane } from '@/lib/default-kit'
 import { getCurrentBpm, getCurrentTimeSig } from '@/components/highway/highway-renderer'
 
@@ -13,7 +14,14 @@ import { getCurrentBpm, getCurrentTimeSig } from '@/components/highway/highway-r
  * memoized per song. The scheduler (use-cue-scheduler) consumes the output.
  */
 
-export type CueType = 'tempo' | 'meter' | 'fill' | 'doubleKick' | 'section' | 'reentry'
+export type CueType =
+  | 'tempo'
+  | 'meter'
+  | 'fill'
+  | 'doubleKick'
+  | 'section'
+  | 'reentry'
+  | 'user'
 
 export interface CueEvent {
   time: number // song time of the EVENT
@@ -92,6 +100,13 @@ const LEAD_BARS = 2
 const LEAD_MIN_SEC = 1.5
 const LEAD_MAX_SEC = 6
 
+/**
+ * Lead for USER cues = 1 bar (a modest heads-up — half the auto-cue lead).
+ * Deliberately shorter: the drummer placed the cue exactly where they want the
+ * reminder, so a ~1-bar warning is enough without firing too early.
+ */
+const USER_LEAD_BARS = 1
+
 /** Two cues whose fireAt fall within this window (sec) collide → keep one. */
 const DEDUP_WINDOW_SEC = 1.2
 
@@ -99,8 +114,10 @@ const DEDUP_WINDOW_SEC = 1.2
  * Higher number = higher priority for the spacing-dedup.
  * tempo/meter > section > doubleKick > fill.
  *
- * 'reentry' is EXEMPT from dedup (it's an atomic multi-beat countdown, not a
- * single blip) so its value here is nominal and never actually consulted.
+ * 'reentry' and 'user' are EXEMPT from this dedup — reentry is an atomic
+ * multi-beat countdown (not a single blip), and user cues are explicit drummer
+ * intent we never drop. Neither flows through analyzeCues' dedup (they're merged
+ * in the scheduler), so their values here are nominal and never consulted.
  */
 const PRIORITY: Record<CueType, number> = {
   tempo: 4,
@@ -109,6 +126,7 @@ const PRIORITY: Record<CueType, number> = {
   doubleKick: 2,
   fill: 1,
   reentry: 0,
+  user: 0,
 }
 
 // ---------------------------------------------------------------------------
@@ -147,13 +165,16 @@ function isFillLane(cat: LaneCategory): boolean {
 // Lead time
 // ---------------------------------------------------------------------------
 
-/** 2 bars at the tempo/meter in effect at `time`, clamped to [1.5, 6] sec. */
-function leadSecondsAt(time: number, bpmEvents: RlrrBpmEvent[]): number {
+/**
+ * `bars` bars at the tempo/meter in effect at `time`, clamped to [1.5, 6] sec.
+ * Defaults to LEAD_BARS (2) for the auto cues; user cues pass USER_LEAD_BARS (1).
+ */
+function leadSecondsAt(time: number, bpmEvents: RlrrBpmEvent[], bars = LEAD_BARS): number {
   const bpm = getCurrentBpm(time, bpmEvents)
   const sig = getCurrentTimeSig(time, bpmEvents)
   const beatsPerMeasure = sig[0] > 0 ? sig[0] : 4
   const safeBpm = bpm > 0 ? bpm : 120
-  const raw = (LEAD_BARS * beatsPerMeasure * 60) / safeBpm
+  const raw = (bars * beatsPerMeasure * 60) / safeBpm
   return Math.max(LEAD_MIN_SEC, Math.min(LEAD_MAX_SEC, raw))
 }
 
@@ -496,4 +517,37 @@ export function analyzeCues(song: Song): CueEvent[] {
   const all = [...deduped, ...reentries]
   all.sort((a, b) => a.fireAt - b.fireAt)
   return all
+}
+
+// ---------------------------------------------------------------------------
+// User cues (drummer-authored; merged into the scheduler alongside analyzeCues)
+// ---------------------------------------------------------------------------
+
+/**
+ * Map drummer-authored UserCues onto schedulable 'user' CueEvents.
+ *
+ * Pure + DOM-free (same contract as analyzeCues): `time = cue.time`, `fireAt =
+ * max(0, time - lead)` where `lead` is ~1 BAR at the local tempo/meter (a modest
+ * heads-up — half the 2-bar auto-cue lead), `text` and `banner` both = the cue's
+ * text. Output is sorted by fireAt ascending so the scheduler can merge it with
+ * analyzeCues' output and re-sort cheaply.
+ *
+ * User cues are intentionally EXEMPT from the priority spacing/dedup — they're
+ * explicit user intent — so they're produced here and merged in the scheduler
+ * (like reentries) rather than passed through analyzeCues' dedup.
+ */
+export function userCuesToCueEvents(cues: UserCue[], bpmEvents: RlrrBpmEvent[]): CueEvent[] {
+  const out = cues.map((c) => {
+    const lead = leadSecondsAt(c.time, bpmEvents, USER_LEAD_BARS)
+    const fireAt = Math.max(0, c.time - lead)
+    return {
+      time: c.time,
+      fireAt,
+      type: 'user' as const,
+      text: c.text,
+      banner: c.text,
+    }
+  })
+  out.sort((a, b) => a.fireAt - b.fireAt)
+  return out
 }

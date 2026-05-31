@@ -39,6 +39,20 @@ const EVENT_CUE_KEYS = [
 export type EventCueKey = (typeof EVENT_CUE_KEYS)[number]
 
 /**
+ * A drummer-authored cue, marked at the playhead and saved per song. On replay
+ * the scheduler fires it (voice + banner) ~1 bar before `time`. Plain JSON data
+ * so the existing `{ ...get() }` save persists it unchanged.
+ */
+export interface UserCue {
+  /** Stable id (crypto.randomUUID) — the edit/delete key. */
+  id: string
+  /** Song time (seconds) of the spot the drummer wants to be warned about. */
+  time: number
+  /** Short spoken/banner phrase, e.g. 'Watch hands'. */
+  text: string
+}
+
+/**
  * Coach Mode user preferences, persisted to localStorage.
  *
  * Loaded prefs are merged OVER the defaults on read (see loadCoachPrefs), so
@@ -75,6 +89,12 @@ export interface CoachPrefs {
   proTipEnabled: boolean
   /** Per-event cue toggles (tempo, meter, fill, double-kick, section, re-entry). */
   eventCues: EventCues
+  /**
+   * Drummer-authored cues, keyed by song id. Each song's list is kept sorted by
+   * time. Plain JSON (Record of arrays of plain objects) so it persists with the
+   * existing `{ ...get() }` save and survives a forward-compatible reload.
+   */
+  userCues: Record<string, UserCue[]>
 }
 
 const DEFAULT_EVENT_CUES: EventCues = {
@@ -97,6 +117,7 @@ const DEFAULT_COACH_PREFS: CoachPrefs = {
   bannerEnabled: true,
   proTipEnabled: true,
   eventCues: { ...DEFAULT_EVENT_CUES },
+  userCues: {},
 }
 
 /** Snap an arbitrary number to the nearest allowed rewind interval. */
@@ -151,6 +172,37 @@ function clampEventCues(cues: unknown): EventCues {
   return out
 }
 
+/** True for a structurally-valid persisted UserCue. */
+function isValidUserCue(v: unknown): v is UserCue {
+  if (typeof v !== 'object' || v === null) return false
+  const c = v as Record<string, unknown>
+  return (
+    typeof c.id === 'string' &&
+    typeof c.time === 'number' &&
+    Number.isFinite(c.time) &&
+    typeof c.text === 'string'
+  )
+}
+
+/**
+ * Validate a persisted userCues map. Anything that isn't a plain object becomes
+ * `{}`; within it, only structurally-valid cues survive, and each song's list is
+ * re-sorted by time so a hand-edited / older save is normalized on load.
+ */
+function clampUserCues(cues: unknown): Record<string, UserCue[]> {
+  if (typeof cues !== 'object' || cues === null || Array.isArray(cues)) return {}
+  const out: Record<string, UserCue[]> = {}
+  for (const [songId, list] of Object.entries(cues as Record<string, unknown>)) {
+    if (!Array.isArray(list)) continue
+    const valid = list.filter(isValidUserCue).map((c) => ({ id: c.id, time: c.time, text: c.text }))
+    if (valid.length > 0) {
+      valid.sort((a, b) => a.time - b.time)
+      out[songId] = valid
+    }
+  }
+  return out
+}
+
 /**
  * Load coach prefs from localStorage, falling back to defaults on first launch
  * or if the stored data is malformed / from an older schema.
@@ -185,6 +237,7 @@ function loadCoachPrefs(): CoachPrefs {
       bannerEnabled: clampBool(parsed.bannerEnabled, DEFAULT_COACH_PREFS.bannerEnabled),
       proTipEnabled: clampBool(parsed.proTipEnabled, DEFAULT_COACH_PREFS.proTipEnabled),
       eventCues: clampEventCues(parsed.eventCues),
+      userCues: clampUserCues(parsed.userCues),
     }
   } catch (err) {
     console.warn('[coach] failed to load, using defaults', err)
@@ -222,6 +275,25 @@ interface CoachState extends CoachPrefs {
   setProTipEnabled: (on: boolean) => void
   /** Toggle a single per-event cue (tempo/meter/fill/…). Persists immediately. */
   setEventCue: (key: EventCueKey, on: boolean) => void
+
+  /**
+   * Add a drummer-authored cue at `time` for `songId`. Returns the new cue's id.
+   * The song's list stays sorted by time. Persists immediately.
+   */
+  addUserCue: (songId: string, time: number, text: string) => string
+  /**
+   * Patch a user cue's time and/or text. Re-sorts the song's list if `time`
+   * changed. No-op if the song / id is unknown. Persists immediately.
+   */
+  updateUserCue: (
+    songId: string,
+    id: string,
+    patch: Partial<Pick<UserCue, 'time' | 'text'>>,
+  ) => void
+  /** Delete a user cue. No-op if the song / id is unknown. Persists immediately. */
+  deleteUserCue: (songId: string, id: string) => void
+  /** Read a song's user cues (sorted by time); `[]` when the song has none. */
+  getUserCues: (songId: string) => UserCue[]
 }
 
 export const useCoachStore = create<CoachState>()((set, get) => ({
@@ -296,4 +368,53 @@ export const useCoachStore = create<CoachState>()((set, get) => ({
     saveCoachPrefs(next)
     set({ eventCues })
   },
+
+  addUserCue: (songId, time, text) => {
+    const id = crypto.randomUUID()
+    const cue: UserCue = { id, time, text }
+    // New immutable map → list (sorted) so subscribers see a fresh identity.
+    const existing = get().userCues[songId] ?? []
+    const list = [...existing, cue].sort((a, b) => a.time - b.time)
+    const userCues: Record<string, UserCue[]> = { ...get().userCues, [songId]: list }
+    const next: CoachPrefs = { ...get(), userCues }
+    saveCoachPrefs(next)
+    set({ userCues })
+    return id
+  },
+
+  updateUserCue: (songId, id, patch) => {
+    const existing = get().userCues[songId]
+    if (!existing) return
+    let changed = false
+    let timeChanged = false
+    const list = existing.map((c) => {
+      if (c.id !== id) return c
+      changed = true
+      const nextTime = typeof patch.time === 'number' && Number.isFinite(patch.time) ? patch.time : c.time
+      const nextText = typeof patch.text === 'string' ? patch.text : c.text
+      if (nextTime !== c.time) timeChanged = true
+      return { ...c, time: nextTime, text: nextText }
+    })
+    if (!changed) return // unknown id — no-op
+    if (timeChanged) list.sort((a, b) => a.time - b.time)
+    const userCues: Record<string, UserCue[]> = { ...get().userCues, [songId]: list }
+    const next: CoachPrefs = { ...get(), userCues }
+    saveCoachPrefs(next)
+    set({ userCues })
+  },
+
+  deleteUserCue: (songId, id) => {
+    const existing = get().userCues[songId]
+    if (!existing) return
+    const list = existing.filter((c) => c.id !== id)
+    if (list.length === existing.length) return // nothing removed — no-op
+    const userCues: Record<string, UserCue[]> = { ...get().userCues }
+    if (list.length > 0) userCues[songId] = list
+    else delete userCues[songId] // drop empty song keys so the map stays tidy
+    const next: CoachPrefs = { ...get(), userCues }
+    saveCoachPrefs(next)
+    set({ userCues })
+  },
+
+  getUserCues: (songId) => get().userCues[songId] ?? [],
 }))
