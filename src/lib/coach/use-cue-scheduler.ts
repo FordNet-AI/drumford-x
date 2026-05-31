@@ -99,47 +99,52 @@ export interface BannerAction {
 }
 
 /**
- * Pure result of advancing one re-entry cue to `currentTime` given the count
+ * Pure result of advancing one countdown cue to `currentTime` given the count
  * beats already ticked. Side-effect-free so it can be unit-tested without a DOM
  * or speech engine — the hook applies the returned actions.
  */
-export interface ReentryTickResult {
+export interface CountdownTickResult {
   /** Count-beat indices newly crossed this tick (added to the fired set). */
   newBeatIndices: number[]
-  /** Banners to show, in order (count digits then optional "GO"). */
+  /** Banners to show, in order (count digits / target, then the terminal flash). */
   banners: BannerAction[]
   /** Spoken words, in order (e.g. ['four','three']). */
   speaks: string[]
-  /** True once the terminal "GO" / hit has been reached this/earlier tick. */
+  /** True once the terminal hit ("GO" / the change) has been reached. */
   goFired: boolean
 }
 
 /**
- * Advance a single 'reentry' cue to `currentTime`, given which count beats have
- * already fired. Returns the banner/speak actions to perform plus the terminal
- * GO flag — WITHOUT mutating anything or touching the DOM. The hook owns the
- * fired-beat set and the actual `showBanner`/`speak` calls.
+ * Advance a single COUNTDOWN cue (reentry / tempo / meter) to `currentTime`,
+ * given which count beats have already fired. Returns the banner/speak actions
+ * plus the terminal flag — WITHOUT mutating anything or touching the DOM. The
+ * hook owns the fired-beat set and the actual `showBanner`/`speak` calls.
  *
  * - Count beats ascend in time; the value spoken DESCENDS (beat index j →
  *   value = countdown.length - j), so 4/4 ticks "four, three, two, one".
+ * - Banner per beat: a 'reentry' flashes the descending DIGIT; a tempo/meter
+ *   change holds its TARGET banner (⚡140 BPM / 7/8) up the whole count. The
+ *   terminal is "GO" for a reentry, or one more target flash for tempo/meter
+ *   (the change just lands — no "GO"). The banner `kind` is the cue type.
  * - The runtime min-gap is intentionally NOT applied here: count beats are ~1
  *   beat apart by design and each must fire.
  * - When `bannerEnabled` / `voiceEnabled` are false, the corresponding action
  *   list is simply empty (the beat is still marked crossed by the caller).
  */
-export function planReentryTick(
+export function planCountdownTick(
   cue: CueEvent,
   currentTime: number,
   firedBeats: ReadonlySet<number>,
   opts: { bannerEnabled: boolean; voiceEnabled: boolean },
-): ReentryTickResult {
-  const result: ReentryTickResult = { newBeatIndices: [], banners: [], speaks: [], goFired: false }
+): CountdownTickResult {
+  const result: CountdownTickResult = { newBeatIndices: [], banners: [], speaks: [], goFired: false }
   const beats = cue.countdown
   if (!beats || beats.length === 0) return result
   if (cue.fireAt > currentTime) return result
 
   // Local beat duration: the last count beat is exactly one beat before the hit.
   const beatDur = Math.max(0.05, cue.time - beats[beats.length - 1]!)
+  const isReentry = cue.type === 'reentry'
 
   for (let j = 0; j < beats.length; j++) {
     if (firedBeats.has(j)) continue
@@ -148,9 +153,9 @@ export function planReentryTick(
     const value = beats.length - j
     if (opts.bannerEnabled) {
       result.banners.push({
-        text: String(value),
+        text: isReentry ? String(value) : cue.banner,
         durationMs: beatDur * 1000 * COUNT_BANNER_BEAT_FACTOR,
-        kind: 'reentry',
+        kind: cue.type,
       })
     }
     if (opts.voiceEnabled) {
@@ -161,7 +166,13 @@ export function planReentryTick(
   if (currentTime >= cue.time) {
     result.goFired = true
     if (opts.bannerEnabled) {
-      result.banners.push({ text: 'GO', durationMs: GO_BANNER_MS, kind: 'reentry' })
+      // Re-entry flashes "GO"; a tempo/meter change just lands, so hold the
+      // target banner a beat longer instead.
+      result.banners.push(
+        isReentry
+          ? { text: 'GO', durationMs: GO_BANNER_MS, kind: 'reentry' }
+          : { text: cue.banner, durationMs: BANNER_MS, kind: cue.type },
+      )
     }
   }
 
@@ -209,12 +220,13 @@ export function useCueScheduler(): void {
 
   // Which single-fire cue indices have already fired this pass.
   const firedRef = useRef<Set<number>>(new Set())
-  // Per-reentry-cue: which countdown beat indices have already ticked. Keyed by
-  // the cue's index in `cues`. A reentry stays "active" across many frames, so
-  // it can't live in firedRef (which gates a one-shot + the scan break).
-  const reentryBeatsRef = useRef<Map<number, Set<number>>>(new Map())
-  // Reentry cue indices whose terminal "GO" / clear has already fired.
-  const reentryGoRef = useRef<Set<number>>(new Set())
+  // Per-countdown-cue: which count beat indices have already ticked. Keyed by
+  // the cue's index in `cues`. A countdown (reentry / tempo / meter) stays
+  // "active" across many frames, so it can't live in firedRef (which gates a
+  // one-shot + the scan break).
+  const countdownBeatsRef = useRef<Map<number, Set<number>>>(new Map())
+  // Countdown cue indices whose terminal hit ("GO" / the change) has fired.
+  const countdownGoRef = useRef<Set<number>>(new Set())
   // Last clock value we saw — used to detect backward jumps (seek/rewind).
   const lastTimeRef = useRef(0)
   // Wall-clock-independent: the song-time of the last SPOKEN cue (for min-gap).
@@ -223,8 +235,8 @@ export function useCueScheduler(): void {
   // Reset everything when the cue set changes (i.e. the song changed).
   useEffect(() => {
     firedRef.current = new Set()
-    reentryBeatsRef.current = new Map()
-    reentryGoRef.current = new Set()
+    countdownBeatsRef.current = new Map()
+    countdownGoRef.current = new Set()
     lastTimeRef.current = 0
     lastSpokenTimeRef.current = -Infinity
   }, [cues])
@@ -235,8 +247,8 @@ export function useCueScheduler(): void {
     // toggling Coach on mid-rewind doesn't inherit a stale fired-set.
     if (currentTime < lastTimeRef.current - BACKWARD_JUMP_TOLERANCE_SEC) {
       firedRef.current = new Set()
-      reentryBeatsRef.current = new Map()
-      reentryGoRef.current = new Set()
+      countdownBeatsRef.current = new Map()
+      countdownGoRef.current = new Set()
       lastSpokenTimeRef.current = -Infinity
     }
     lastTimeRef.current = currentTime
@@ -252,14 +264,15 @@ export function useCueScheduler(): void {
       const coach = useCoachStore.getState()
       const runtime = useCoachRuntime.getState()
 
-    // --- Single-fire cues (tempo/meter/fill/doubleKick/section) -------------
+    // --- Single-fire cues (fill / double-kick / section / user, plus any
+    //     tempo/meter change with no room to count in) ----------------------
     // Sorted by fireAt; once we hit a future one the rest are future too.
-    // Re-entry cues are NOT single-fire — they're handled in the pass below and
-    // skipped here (their multi-beat span would otherwise wrongly trip the
-    // early break and stall later cues).
+    // COUNTDOWN cues (reentry + tempo/meter that carry a count bar) are handled
+    // in the pass below and skipped here — their multi-beat span would otherwise
+    // trip the early break and stall later cues.
     for (let i = 0; i < cues.length; i++) {
       const cue = cues[i]!
-      if (cue.type === 'reentry') continue
+      if (cue.countdown && cue.countdown.length > 0) continue
       if (firedRef.current.has(i)) continue
       if (cue.fireAt > currentTime) break
 
@@ -292,35 +305,36 @@ export function useCueScheduler(): void {
       }
     }
 
-    // --- Re-entry count-ins -------------------------------------------------
+    // --- Countdown cues (reentry / tempo / meter) ---------------------------
     // Each is an atomic multi-beat sequence: tick one descending number per
-    // countdown beat as the clock crosses it, then a brief "GO" at the hit.
-    // No early break (a reentry stays active across many frames, and later
-    // single-fire cues were already handled above). Cheap: few cues total.
-    const reentryEnabled = coach.eventCues.cueReentry
+    // count beat as the clock crosses it. A reentry flashes the digit + "GO"; a
+    // tempo/meter change holds its target banner and just lands. No early break
+    // (a countdown stays active across many frames, and the single-fire cues
+    // were handled above). Cheap: few cues total.
     for (let i = 0; i < cues.length; i++) {
       const cue = cues[i]!
-      if (cue.type !== 'reentry' || !cue.countdown) continue
+      if (!cue.countdown || cue.countdown.length === 0) continue
       // Nothing to do until the first count beat is reached.
       if (cue.fireAt > currentTime) continue
-      // Whole sequence already finished (GO fired) — skip.
-      if (reentryGoRef.current.has(i)) continue
+      // Whole sequence already finished — skip.
+      if (countdownGoRef.current.has(i)) continue
 
-      // Per-type toggle: if re-entry cues are off, consume the sequence silently
-      // (mark GO fired) so it never re-evaluates this pass.
-      if (!reentryEnabled) {
-        reentryGoRef.current.add(i)
+      // Per-type toggle (cueReentry / cueTempo / cueMeter): if this cue type is
+      // off, consume the sequence silently so it never re-evaluates this pass.
+      const toggleKey = CUE_TYPE_TO_TOGGLE[cue.type]
+      if (toggleKey && !coach.eventCues[toggleKey]) {
+        countdownGoRef.current.add(i)
         continue
       }
 
-      let fired = reentryBeatsRef.current.get(i)
+      let fired = countdownBeatsRef.current.get(i)
       if (!fired) {
         fired = new Set()
-        reentryBeatsRef.current.set(i, fired)
+        countdownBeatsRef.current.set(i, fired)
       }
 
       // Pure planning step (unit-tested) → apply its side effects here.
-      const plan = planReentryTick(cue, currentTime, fired, {
+      const plan = planCountdownTick(cue, currentTime, fired, {
         bannerEnabled: coach.bannerEnabled,
         voiceEnabled: coach.voiceEnabled,
       })
@@ -328,7 +342,7 @@ export function useCueScheduler(): void {
       for (const b of plan.banners) runtime.showBanner(b.text, b.durationMs, b.kind)
       // Count beats are intentionally ~1 beat apart and bypass the min-gap.
       for (const word of plan.speaks) speak(word)
-      if (plan.goFired) reentryGoRef.current.add(i)
+      if (plan.goFired) countdownGoRef.current.add(i)
     }
     } catch (err) {
       console.error('[coach] cue scheduler tick failed — skipping this frame:', err)

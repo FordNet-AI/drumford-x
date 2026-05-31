@@ -125,16 +125,17 @@ function makeSong(notes: HighwayNote[], bpmEvents: RlrrBpmEvent[], duration: num
 
 describe('user cue + auto cue coexistence (dedup decision)', () => {
   it('keeps a user cue whose fireAt collides with an auto cue (within the dedup window)', () => {
-    // Tempo change at t=10 (auto, 2-bar lead @120 → fireAt=6). Place the user cue
-    // at t=8 so its 1-bar lead (2.0s) yields fireAt=6 too — an exact collision.
-    // The merge must keep BOTH: user cues are exempt from being dropped.
+    // Tempo change at t=10 (auto). With the count-in lead the tempo cue now fires
+    // at t=8 (one 4/4 bar @120 before the change). Place the user cue at t=10 so
+    // its 1-bar lead (~1.6–2.0s) lands fireAt ≈ 8 too — well within the 1.2s dedup
+    // window. The merge must keep BOTH: user cues are exempt from being dropped.
     const bpmEvents: RlrrBpmEvent[] = [
       { bpm: 120, time: 0, timeSignature: [4, 4] },
       { bpm: 150, time: 10, timeSignature: [4, 4] },
     ]
     const song = makeSong(steadyGroove(16, 120), bpmEvents, 40)
     const auto = analyzeCues(song)
-    const user = userCuesToCueEvents([{ id: 'u', time: 8, text: 'Watch hands' }], bpmEvents)
+    const user = userCuesToCueEvents([{ id: 'u', time: 10, text: 'Watch hands' }], bpmEvents)
 
     const merged = [...auto, ...user].sort((a, b) => a.fireAt - b.fireAt)
     const userEvents = merged.filter((c) => c.type === 'user')

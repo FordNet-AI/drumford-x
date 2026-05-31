@@ -195,6 +195,45 @@ function makeCue(
   return { time, fireAt, type, text, banner }
 }
 
+/**
+ * The last `count` beat times strictly before `time`, ascending, at `bpm` — i.e.
+ * the (full) bar leading INTO `time`. Used to count the drummer into a
+ * tempo/meter change ("4,3,2,1" landing on the change). Beats clamp to >= 0 and
+ * `count` is capped (REENTRY_MAX_COUNT_BEATS) so a long/odd meter can't spawn a
+ * giant count.
+ */
+function countdownBeats(time: number, bpm: number, count: number): number[] {
+  const safeBpm = bpm > 0 ? bpm : 120
+  const beatDur = 60 / safeBpm
+  const n = Math.min(Math.max(1, Math.floor(count)), REENTRY_MAX_COUNT_BEATS)
+  const beats: number[] = []
+  for (let k = n; k >= 1; k--) {
+    const bt = time - k * beatDur
+    if (bt >= 0) beats.push(bt)
+  }
+  return beats
+}
+
+/**
+ * Build a COUNTDOWN cue: a `beatsPerMeasure`-beat lead-in (at the PRE-change
+ * tempo/meter) landing on `time`, so the scheduler ticks "4,3,2,1" into the
+ * change while the banner shows the target. Falls back to a normal single-fire
+ * cue when there's no room for a count bar (a change within the first beat).
+ */
+function makeCountdownCue(
+  time: number,
+  type: CueType,
+  text: string,
+  banner: string,
+  bpm: number,
+  beatsPerMeasure: number,
+  bpmEvents: RlrrBpmEvent[],
+): CueEvent {
+  const countdown = countdownBeats(time, bpm, beatsPerMeasure)
+  if (countdown.length === 0) return makeCue(time, type, text, banner, bpmEvents)
+  return { time, fireAt: countdown[0]!, type, text, banner, countdown }
+}
+
 // ---------------------------------------------------------------------------
 // Detectors
 // ---------------------------------------------------------------------------
@@ -213,19 +252,24 @@ function detectTempoAndMeter(song: Song): CueEvent[] {
     const e = events[i]!
     const sig = e.timeSignature ?? prevSig
 
-    // tempo — fires on a change of TEMPO_MIN_DELTA_BPM (10) or more.
+    // tempo — count the drummer into a change of TEMPO_MIN_DELTA_BPM (10)+ bpm.
+    // The count bar runs at the OLD tempo/meter (the bar before the change), and
+    // the banner shows the target while the voice ticks "4,3,2,1".
     if (Math.abs(e.bpm - prevBpm) >= TEMPO_MIN_DELTA_BPM) {
       const dir = e.bpm > prevBpm ? 'Speeding up' : 'Slowing down'
       const bpm = Math.round(e.bpm)
       out.push(
-        makeCue(e.time, 'tempo', `${dir}, ${bpm}`, `⚡ ${bpm} BPM`, song.bpmEvents),
+        makeCountdownCue(e.time, 'tempo', `${dir} to ${bpm}`, `⚡ ${bpm} BPM`, prevBpm, prevSig[0], song.bpmEvents),
       )
     }
 
-    // meter — fires when the time signature itself changes
+    // meter — count into a time-signature change, in the OLD meter at the tempo
+    // in effect before the change.
     if (e.timeSignature && (sig[0] !== prevSig[0] || sig[1] !== prevSig[1])) {
       const label = `${sig[0]}/${sig[1]}`
-      out.push(makeCue(e.time, 'meter', label, label, song.bpmEvents))
+      out.push(
+        makeCountdownCue(e.time, 'meter', `Into ${label}`, label, prevBpm, prevSig[0], song.bpmEvents),
+      )
     }
 
     prevBpm = e.bpm

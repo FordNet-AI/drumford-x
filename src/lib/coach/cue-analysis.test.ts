@@ -134,6 +134,44 @@ describe('analyzeCues', () => {
     expect(cuesOfType(analyzeCues(song), 'tempo').length).toBe(1)
   })
 
+  it('builds a full-bar countdown into a tempo change (fireAt = first count beat)', () => {
+    const song = makeSong({
+      bpmEvents: [
+        { bpm: 120, time: 0, timeSignature: [4, 4] },
+        { bpm: 150, time: 10, timeSignature: [4, 4] },
+      ],
+      duration: 20,
+    })
+    const tempo = cuesOfType(analyzeCues(song), 'tempo')
+    expect(tempo.length).toBe(1)
+    const c = tempo[0]!
+    // 4/4 @120 → beatDur 0.5; count beats at 8, 8.5, 9, 9.5; change at 10.
+    expect(c.countdown).toBeDefined()
+    expect(c.countdown!.length).toBe(4)
+    expect(c.fireAt).toBeCloseTo(8, 5)
+    expect(c.time).toBeCloseTo(10, 5)
+    expect(c.banner).toContain('150')
+  })
+
+  it('counts in at the OLD meter when the time signature changes', () => {
+    const song = makeSong({
+      bpmEvents: [
+        { bpm: 120, time: 0, timeSignature: [4, 4] },
+        { bpm: 120, time: 12, timeSignature: [7, 8] }, // meter only (no tempo cue)
+      ],
+      duration: 20,
+    })
+    const cues = analyzeCues(song)
+    expect(cuesOfType(cues, 'tempo').length).toBe(0)
+    const meter = cuesOfType(cues, 'meter')
+    expect(meter.length).toBe(1)
+    const c = meter[0]!
+    // Old meter 4/4 → 4 count beats before the change at 12 (@120): 10,10.5,11,11.5.
+    expect(c.countdown!.length).toBe(4)
+    expect(c.fireAt).toBeCloseTo(10, 5)
+    expect(c.banner).toBe('7/8')
+  })
+
   it('does NOT emit a tempo cue for a tiny (<=2 bpm) wobble', () => {
     const song = makeSong({
       bpmEvents: [

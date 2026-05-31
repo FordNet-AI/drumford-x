@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { planReentryTick } from './use-cue-scheduler'
+import { planCountdownTick } from './use-cue-scheduler'
 import { analyzeCues, type CueEvent } from './cue-analysis'
 import type { HighwayNote, RlrrBpmEvent, Song } from '@/types/song'
 
 /**
- * Unit tests for the re-entry COUNTDOWN stepping (planReentryTick), the pure
+ * Unit tests for the re-entry COUNTDOWN stepping (planCountdownTick), the pure
  * core of the scheduler's headline behavior. The hook just dispatches the
  * banner/speak actions this returns, so testing it here exercises the real
  * crossing logic without needing a DOM or speech engine.
@@ -62,10 +62,10 @@ function reentryCue(): CueEvent {
 
 const BOTH_ON = { bannerEnabled: true, voiceEnabled: true }
 
-describe('planReentryTick', () => {
+describe('planCountdownTick', () => {
   it('does nothing before the first count beat', () => {
     const cue = reentryCue() // 4/4@120: beats at 14,14.5,15,15.5; hit 16
-    const plan = planReentryTick(cue, cue.fireAt - 0.1, new Set(), BOTH_ON)
+    const plan = planCountdownTick(cue, cue.fireAt - 0.1, new Set(), BOTH_ON)
     expect(plan.newBeatIndices).toEqual([])
     expect(plan.banners).toEqual([])
     expect(plan.speaks).toEqual([])
@@ -84,7 +84,7 @@ describe('planReentryTick', () => {
     // Step frame-by-frame just past each count beat, then past the hit.
     const stops = [...beats, cue.time].map((t) => t + 0.01)
     for (const t of stops) {
-      const plan = planReentryTick(cue, t, fired, BOTH_ON)
+      const plan = planCountdownTick(cue, t, fired, BOTH_ON)
       for (const j of plan.newBeatIndices) fired.add(j)
       banners.push(...plan.banners.map((b) => b.text))
       spoken.push(...plan.speaks)
@@ -98,11 +98,11 @@ describe('planReentryTick', () => {
     const cue = reentryCue()
     const fired = new Set<number>()
     const t = cue.countdown![0]! + 0.01
-    const first = planReentryTick(cue, t, fired, BOTH_ON)
+    const first = planCountdownTick(cue, t, fired, BOTH_ON)
     for (const j of first.newBeatIndices) fired.add(j)
     expect(first.newBeatIndices).toEqual([0])
 
-    const second = planReentryTick(cue, t, fired, BOTH_ON)
+    const second = planCountdownTick(cue, t, fired, BOTH_ON)
     expect(second.newBeatIndices).toEqual([])
     expect(second.banners).toEqual([])
     expect(second.speaks).toEqual([])
@@ -111,7 +111,7 @@ describe('planReentryTick', () => {
   it('catches up multiple beats crossed in one frame (after a seek)', () => {
     const cue = reentryCue()
     // Jump straight to just before the hit — all 4 count beats are already past.
-    const plan = planReentryTick(cue, cue.time - 0.01, new Set(), BOTH_ON)
+    const plan = planCountdownTick(cue, cue.time - 0.01, new Set(), BOTH_ON)
     expect(plan.newBeatIndices).toEqual([0, 1, 2, 3])
     expect(plan.speaks).toEqual(['four', 'three', 'two', 'one'])
     expect(plan.goFired).toBe(false) // hit not yet reached
@@ -120,7 +120,7 @@ describe('planReentryTick', () => {
   it('fires GO once the hit time is reached, even if beats were already done', () => {
     const cue = reentryCue()
     const fired = new Set([0, 1, 2, 3]) // all counts already ticked
-    const plan = planReentryTick(cue, cue.time + 0.01, fired, BOTH_ON)
+    const plan = planCountdownTick(cue, cue.time + 0.01, fired, BOTH_ON)
     expect(plan.newBeatIndices).toEqual([])
     expect(plan.goFired).toBe(true)
     expect(plan.banners.map((b) => b.text)).toEqual(['GO'])
@@ -128,7 +128,7 @@ describe('planReentryTick', () => {
 
   it('suppresses banners when bannerEnabled is false but still speaks', () => {
     const cue = reentryCue()
-    const plan = planReentryTick(cue, cue.time + 0.01, new Set(), {
+    const plan = planCountdownTick(cue, cue.time + 0.01, new Set(), {
       bannerEnabled: false,
       voiceEnabled: true,
     })
@@ -139,7 +139,7 @@ describe('planReentryTick', () => {
 
   it('suppresses speech when voiceEnabled is false but still shows banners', () => {
     const cue = reentryCue()
-    const plan = planReentryTick(cue, cue.time + 0.01, new Set(), {
+    const plan = planCountdownTick(cue, cue.time + 0.01, new Set(), {
       bannerEnabled: true,
       voiceEnabled: false,
     })
@@ -149,7 +149,7 @@ describe('planReentryTick', () => {
 
   it('count banner duration is ~1.1 beats (0.55s at 120bpm)', () => {
     const cue = reentryCue()
-    const plan = planReentryTick(cue, cue.countdown![0]! + 0.01, new Set(), BOTH_ON)
+    const plan = planCountdownTick(cue, cue.countdown![0]! + 0.01, new Set(), BOTH_ON)
     const countBanner = plan.banners[0]!
     // beat = 0.5s, factor 1.1 → 550ms
     expect(Math.abs(countBanner.durationMs - 550)).toBeLessThan(1)
@@ -165,13 +165,13 @@ describe('planReentryTick', () => {
     })
     const cue = analyzeCues(song).find((c) => c.type === 'reentry' && Math.abs(c.time - 20) < 0.01)!
     expect(cue.countdown!.length).toBe(8)
-    const plan = planReentryTick(cue, cue.time - 0.01, new Set(), BOTH_ON)
+    const plan = planCountdownTick(cue, cue.time - 0.01, new Set(), BOTH_ON)
     expect(plan.speaks).toEqual(['eight', 'seven', 'six', 'five', 'four', 'three', 'two', 'one'])
   })
 
   it('returns nothing for a non-reentry cue / cue without countdown', () => {
     const fake: CueEvent = { time: 10, fireAt: 8, type: 'tempo', text: 'x', banner: 'x' }
-    const plan = planReentryTick(fake, 12, new Set(), BOTH_ON)
+    const plan = planCountdownTick(fake, 12, new Set(), BOTH_ON)
     expect(plan.newBeatIndices).toEqual([])
     expect(plan.banners).toEqual([])
     expect(plan.speaks).toEqual([])
