@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -23,5 +24,12 @@ export default defineConfig({
     fs: {
       allow: ['.'],
     },
+  },
+  test: {
+    // Cue analysis is pure logic (no DOM) — run it under Node for speed.
+    // The scheduler hook isn't unit-tested here (it's verified in-app), so we
+    // don't need jsdom.
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
   },
 })

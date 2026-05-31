@@ -13,6 +13,8 @@
     "build:electron": "tsc -p tsconfig.electron.json && node scripts/rename-cjs.cjs",
     "build:renderer": "tsc -b && vite build",
     "build": "npm run build:electron && npm run build:renderer",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "start": "npm run build:electron && electron .",
     "preview": "vite preview",
     "icon": "node scripts/generate-icon.cjs",
@@ -39,7 +41,8 @@
     "sharp": "^0.34.5",
     "tailwindcss": "^4.2.1",
     "typescript": "~5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.1.7"
   },
   "build": {
     "appId": "com.fordnet.drumford-x",
