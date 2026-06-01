@@ -45,9 +45,9 @@ folder is NOT in the git repo** (deliberately).
 
 ## 2. Host the privacy policy (need a public URL)
 
-- [ ] Enable GitHub Pages: repo Settings → Pages → deploy from branch, `/docs`
-      folder (or main). Resulting URL ≈
-      `https://fordnet-ai.github.io/drumford-x/privacy-policy`
+- [x] GitHub Pages enabled — serving `android-play` `/docs`. **Live & verified
+      (HTTP 200, rendered HTML):**
+      <https://fordnet-ai.github.io/drumford-x/privacy-policy>
 - [ ] Paste that URL into the Console's required Privacy Policy field.
 
 ## 3. Create the app in Play Console
@@ -110,8 +110,12 @@ folder is NOT in the git repo** (deliberately).
 
 ## 9. Upload the bundle
 
-- [ ] Get the signed AAB: GitHub → Actions → "Build Android AAB (Play)" run →
-      Artifacts → **drumford-x-play-aab** → download → unzip → `app-release.aab`.
+- [x] Signed AAB already built & downloaded:
+      `D:\Fordnet\DrumFord X\release-android\app-release.aab` (3.3 MB).
+      Built by CI run 26763961848 (commit `76bb731`) → **versionName 0.1.0,
+      versionCode 5**. Verified: valid AAB, web bundle embedded, signed with the
+      Play upload key. To rebuild later, re-run "Build Android AAB (Play)" and
+      download artifact **drumford-x-play-aab**.
 - [ ] Release → **Testing → Internal testing** → Create new release → upload the
       `.aab` → add release notes (reuse the v0.1.0 notes) → roll out.
 - [ ] Add testers (your email + friends) to the Internal testing list; share the
