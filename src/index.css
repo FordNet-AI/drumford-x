@@ -1,11 +1,9 @@
 @import "tailwindcss";
 
-/* Google Fonts CSS endpoint — returns CSS that contains the *current* gstatic
-   woff2 URLs. We previously hard-coded `https://fonts.gstatic.com/.../v31/...woff2`
-   which 404'd when Google rotated to v32. The CSS endpoint is Google's
-   maintained API; the gstatic URLs underneath are an implementation detail
-   that changes over time. */
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&family=Share+Tech+Mono&display=swap');
+/* Fonts (Orbitron + Share Tech Mono) load via <link> in index.html, not here:
+   Tailwind v4's lightningcss strips remote @imports during build, so a CSS
+   @import is silently dropped (and, placed after Tailwind's expanded rules,
+   warns "@import must precede all rules"). Don't re-add one here. */
 
 @theme {
   --color-bg-primary: #050508;
