@@ -20,8 +20,8 @@ const isElectron = !!window.electronAPI
  *     because we leave the library when clicked.
  *
  * The Community Charts tab needs the Electron main process (CORS bypass for
- * the chart API) or the Capacitor native HTTP layer, so it's hidden in plain
- * browser mode but shown on both shipped platforms.
+ * the chart API), so it's hidden in plain browser mode and only appears in the
+ * desktop app.
  */
 export function LibraryTabs({ activeTab, onTabChange }: LibraryTabsProps) {
   const setScreen = useUIStore((s) => s.setScreen)
